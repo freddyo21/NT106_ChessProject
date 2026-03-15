@@ -15,8 +15,6 @@ Mục tiêu của dự án là tạo ra một hệ thống chơi cờ vua online
 - Tạo và tham gia phòng chơi
 - Đồng bộ nước đi giữa hai người chơi theo thời gian thực
 - Quản lý trạng thái ván cờ
-- 
-
 ---
 
 ## Công nghệ sử dụng

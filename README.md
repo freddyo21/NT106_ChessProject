@@ -4,9 +4,9 @@ Dự án xây dựng ứng dụng / game cờ vua online cho phép người dùn
 
 ## Mô tả
 Project sử dụng:
-- **Frontend:** React
-- **Backend:** Node.js
-- **Realtime:** WebSocket / Socket.io
+- **Frontend:** React + Tauri
+- **Backend:** Express.js
+- **Realtime:** WebSocket with Socket.io
 - **Database:** PostgreSQL
 - **Authentication & Security:** JWT, bcrypt
 
@@ -20,14 +20,13 @@ Mục tiêu của dự án là tạo ra một hệ thống chơi cờ vua online
 ## Công nghệ sử dụng
 
 ### Frontend
-- React
+- React + Tauri
 
 ### Backend
-- Node.js
 - Express.js
 
 ### Realtime
-- Socket.io / WebSocket
+- WebSocket with Socket.io
 
 ### Database
 - PostgreSQL

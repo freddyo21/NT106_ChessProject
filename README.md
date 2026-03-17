@@ -4,9 +4,9 @@ Dự án xây dựng ứng dụng / game cờ vua online cho phép người dùn
 
 ## Mô tả
 Project sử dụng:
-- **Frontend:** React + Tauri
-- **Backend:** Express.js
-- **Realtime:** WebSocket with Socket.io
+- **Client/Desktop App:** Tauri + React
+- **Game Server:** Node.js + Socket.io
+- **Realtime:** WebSocket
 - **Database:** PostgreSQL
 - **Authentication & Security:** JWT, bcrypt
 

@@ -6,7 +6,7 @@ Dự án xây dựng ứng dụng / game cờ vua online cho phép người dùn
 Project sử dụng:
 - **Client/Desktop App:** Tauri + React
 - **Game Server:** Express.js 
-- **Realtime:** WebSocket
+- **Realtime:** WebSocket with socket.io
 - **Database:** PostgreSQL
 - **Authentication & Security:** JWT, bcrypt
 

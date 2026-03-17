@@ -19,14 +19,14 @@ Mục tiêu của dự án là tạo ra một hệ thống chơi cờ vua online
 
 ## Công nghệ sử dụng
 
-### Frontend
+### Client/Desktop App
 - React + Tauri
 
-### Backend
-- Express.js
+### Game Server
+- Node.js + Socket.io
 
 ### Realtime
-- WebSocket with Socket.io
+- WebSocket
 
 ### Database
 - PostgreSQL

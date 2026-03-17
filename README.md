@@ -26,7 +26,7 @@ Mục tiêu của dự án là tạo ra một hệ thống chơi cờ vua online
 - Express.js 
 
 ### Realtime
-- WebSocket
+- WebSocket with socket.io
 
 ### Database
 - PostgreSQL

@@ -23,7 +23,7 @@ Mục tiêu của dự án là tạo ra một hệ thống chơi cờ vua online
 - React + Tauri
 
 ### Game Server
-- Node.js + Express.js + Socket.io
+- Express.js 
 
 ### Realtime
 - WebSocket

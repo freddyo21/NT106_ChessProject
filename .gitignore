@@ -1,0 +1,40 @@
+# [--- LOGS & DEBUG ---]
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+*.local
+
+# [--- DEPENDENCIES ---]
+node_modules/
+/target/
+/gen/schemas
+dist/
+dist-ssr/
+
+# [--- OS & EDITORS ---]
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+Thumbs.db
+
+# [--- SECURITY & ENV ---]
+.env
+.env.local
+.env.*.local
+*.env.bak
+*.env.old
+
+# [--- DATABASE (PostgreSQL) ---]
+*.sql
+*.dump
+pgdata/

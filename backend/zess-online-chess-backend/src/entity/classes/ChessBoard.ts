@@ -14,6 +14,7 @@ export class ChessBoard {
     private history: BoardSnapshot[] = [];
 
     private kingPositions: { white: Position; black: Position };
+    private currentTurn: Color = "white";
 
     private readonly xCoord = {
         a: 0,
@@ -29,6 +30,11 @@ export class ChessBoard {
     constructor() {
         this.board = this.initializeBoard();
         this.kingPositions = this.findInitialKingPositions();
+    }
+
+
+    public getCurrentTurn(): Color {
+        return this.currentTurn;
     }
 
     private findInitialKingPositions(): { white: Position; black: Position } {
@@ -161,6 +167,10 @@ export class ChessBoard {
             return false;
         }
 
+        if (piece.color !== this.currentTurn) {
+            return false;
+        }
+
         const legalMoves = this.getLegalMoves(from);
         const isLegal = legalMoves.some(
             (move) => move.row === to.row && move.col === to.col
@@ -170,8 +180,11 @@ export class ChessBoard {
             return false;
         }
 
+
         this.history.push(this.saveSnapshot());
         this.applyMove(from, to);
+
+        this.currentTurn = this.currentTurn === "white" ? "black" : "white";
 
         return true;
     }
@@ -388,6 +401,7 @@ export class ChessBoard {
                 white: { ...this.kingPositions.white },
                 black: { ...this.kingPositions.black },
             },
+            currentTurn: this.currentTurn,
         };
     }
 

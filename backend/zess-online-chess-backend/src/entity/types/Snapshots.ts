@@ -11,4 +11,5 @@ export type PieceSnapshot = {
 export type BoardSnapshot = {
     board: (PieceSnapshot | null)[][];
     kingPositions: { white: Position; black: Position };
+    currentTurn: Color;
 };

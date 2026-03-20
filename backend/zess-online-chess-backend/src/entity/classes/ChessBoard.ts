@@ -28,10 +28,33 @@ export class ChessBoard {
 
     constructor() {
         this.board = this.initializeBoard();
-        this.kingPositions = {
-            white: { row: 0, col: 4 },
-            black: { row: 7, col: 4 },
-        };
+        this.kingPositions = this.findInitialKingPositions();
+    }
+
+    private findInitialKingPositions(): { white: Position; black: Position } {
+        let white: Position | null = null;
+        let black: Position | null = null;
+
+        for (let row = 0; row < 8; row++) {
+            for (let col = 0; col < 8; col++) {
+                const piece = this.board[row]?.[col];
+                if (!piece || piece.type !== "king") {
+                    continue;
+                }
+
+                if (piece.color === "white") {
+                    white = { row, col };
+                } else {
+                    black = { row, col };
+                }
+            }
+        }
+
+        if (!white || !black) {
+            throw new Error("Missing king on initial board");
+        }
+
+        return { white, black };
     }
 
     private initializeEmptyBoard(): (Piece | null)[][] {
@@ -59,33 +82,34 @@ export class ChessBoard {
         }
 
         for (let i = 0; i < 8; i++) {
-            row1[i] = new Pawn("white");
-            row6[i] = new Pawn("black");
+            row1[i] = new Pawn("black");
+            row6[i] = new Pawn("white");
         }
 
-        row0[this.xCoord.a] = new Rook("white");
-        row0[this.xCoord.h] = new Rook("white");
-        row7[this.xCoord.a] = new Rook("black");
-        row7[this.xCoord.h] = new Rook("black");
+        row0[this.xCoord.a] = new Rook("black");
+        row0[this.xCoord.h] = new Rook("black");
+        row7[this.xCoord.a] = new Rook("white");
+        row7[this.xCoord.h] = new Rook("white");
 
-        row0[this.xCoord.b] = new Knight("white");
-        row0[this.xCoord.g] = new Knight("white");
-        row7[this.xCoord.b] = new Knight("black");
-        row7[this.xCoord.g] = new Knight("black");
+        row0[this.xCoord.b] = new Knight("black");
+        row0[this.xCoord.g] = new Knight("black");
+        row7[this.xCoord.b] = new Knight("white");
+        row7[this.xCoord.g] = new Knight("white");
 
-        row0[this.xCoord.c] = new Bishop("white");
-        row0[this.xCoord.f] = new Bishop("white");
-        row7[this.xCoord.c] = new Bishop("black");
-        row7[this.xCoord.f] = new Bishop("black");
+        row0[this.xCoord.c] = new Bishop("black");
+        row0[this.xCoord.f] = new Bishop("black");
+        row7[this.xCoord.c] = new Bishop("white");
+        row7[this.xCoord.f] = new Bishop("white");
 
-        row0[this.xCoord.d] = new Queen("white");
-        row7[this.xCoord.d] = new Queen("black");
+        row0[this.xCoord.d] = new Queen("black");
+        row7[this.xCoord.d] = new Queen("white");
 
-        row0[this.xCoord.e] = new King("white");
-        row7[this.xCoord.e] = new King("black");
+        row0[this.xCoord.e] = new King("black");
+        row7[this.xCoord.e] = new King("white");
 
         return board;
     }
+
 
     public getPieceAt(position: Position): Piece | null {
         return this.board[position.row]?.[position.col] ?? null;
@@ -213,7 +237,7 @@ export class ChessBoard {
             return [];
         }
 
-        const homeRow = color === "white" ? 0 : 7;
+        const homeRow = color === "white" ? 7 : 0;
         if (from.row !== homeRow || from.col !== 4) {
             return [];
         }
@@ -297,7 +321,7 @@ export class ChessBoard {
                 }
 
                 if (piece.type === "pawn") {
-                    const direction = byColor === "white" ? 1 : -1;
+                    const direction = byColor === "white" ? -1 : 1;
                     const attackLeft = { row: row + direction, col: col - 1 };
                     const attackRight = { row: row + direction, col: col + 1 };
 
@@ -345,6 +369,7 @@ export class ChessBoard {
 
         return false;
     }
+
 
     private saveSnapshot(): BoardSnapshot {
         return {

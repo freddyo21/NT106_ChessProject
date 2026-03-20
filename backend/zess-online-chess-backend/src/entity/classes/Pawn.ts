@@ -17,46 +17,9 @@ export class Pawn extends Piece {
         super(color);
     }
 
-    // getValidMoves(currentPos: Position, board: (Piece | null)[][]): Position[] {
-    //     const moves: Position[] = [];
-    //     const direction = this.color === "white" ? 1 : -1; // White moves up, black moves down
-
-    //     // Forward move
-    //     const forwardY = currentPos.row + direction;
-
-    //     if (forwardY >= 0 && forwardY < 8) {
-    //         // Check if the square in front is empty
-    //         if (!board[forwardY]?.[currentPos.col]) {
-    //             moves.push({ row: forwardY, col: currentPos.col });
-
-    //             // Check for double move from starting position
-    //             if (!this._hasMoved) {
-    //                 const doubleForwardY = currentPos.row + 2 * direction;
-    //                 if (ChessBoard.isInsideBoard(doubleForwardY, currentPos.col) && !board[doubleForwardY]?.[currentPos.col]) {
-    //                     moves.push({ row: doubleForwardY, col: currentPos.col });
-    //                 }
-
-    //             }
-    //         }
-
-    //         // Capture moves
-    //         for (const capture of [1, -1]) {
-    //             const captureX = currentPos.col + capture;
-    //             if (ChessBoard.isInsideBoard(forwardY, captureX)) {
-    //                 const targetPiece = board[forwardY]?.[captureX];
-    //                 if (targetPiece && targetPiece.color !== this.color) {
-    //                     moves.push({ row: forwardY, col: captureX });
-    //                 }
-    //             }
-    //         }
-    //     }
-
-    //     return moves;
-    // }
-
     getValidMoves(currentPos: Position, board: (Piece | null)[][]): Position[] {
         const validMoves: Position[] = [];
-        const direction = this.color === "white" ? 1 : -1;
+        const direction = this.color === "white" ? -1 : 1;
 
         for (const move of this.movementVectors) {
             const targetRow = currentPos.row + move.row * direction;
@@ -68,7 +31,6 @@ export class Pawn extends Piece {
 
             const targetPiece = board[targetRow]?.[targetCol] ?? null;
 
-            // Forward move
             if (move.row === 1 && move.col === 0) {
                 if (targetPiece === null) {
                     validMoves.push({ row: targetRow, col: targetCol });
@@ -76,26 +38,22 @@ export class Pawn extends Piece {
                 continue;
             }
 
-            // Double forward move
             if (move.row === 2 && move.col === 0) {
+                const startRow = this.color === "white" ? 6 : 1;
                 const middleRow = currentPos.row + direction;
-                const middlePiece = board[middleRow]?.[currentPos.col] ?? null;
-
-                const startRow = this.color === "white" ? 1 : 6;
 
                 if (
-                    !this._hasMoved &&
                     currentPos.row === startRow &&
+                    !this._hasMoved &&
                     ChessBoard.isInsideBoard(middleRow, currentPos.col) &&
-                    !middlePiece &&
-                    !targetPiece
+                    board[middleRow]?.[currentPos.col] === null &&
+                    targetPiece === null
                 ) {
                     validMoves.push({ row: targetRow, col: targetCol });
                 }
                 continue;
             }
 
-            // Capture move
             if (move.row === 1 && Math.abs(move.col) === 1) {
                 if (targetPiece && targetPiece.color !== this.color) {
                     validMoves.push({ row: targetRow, col: targetCol });

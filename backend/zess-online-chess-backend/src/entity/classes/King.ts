@@ -1,5 +1,6 @@
 import { Color } from "../types/Color";
 import { Position } from "../types/Position";
+import { ChessBoard } from "./ChessBoard";
 import { Piece } from "./Piece";
 
 export class King extends Piece {
@@ -29,7 +30,7 @@ export class King extends Piece {
             const newCol = currentPos.col + dir.col;
 
             // Check if the new position is within the board boundaries
-            if (newRow >= 0 && newRow < 8 && newCol >= 0 && newCol < 8) {
+            if (ChessBoard.isInsideBoard(newRow, newCol)) {
                 // Check if the square is empty or occupied by an opponent's piece
                 const targetPiece = board[newRow]?.[newCol];
                 if (!targetPiece || targetPiece.color !== this.color) {
@@ -37,8 +38,6 @@ export class King extends Piece {
                 }
             }
         }
-
-        
 
         return moves;
     }

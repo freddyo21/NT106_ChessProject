@@ -105,18 +105,18 @@ function LoginUI() {
         <div className="auth-left">
           <div className="brand-block">
             <img src={logo} alt="Zess Online Chess logo" className="logo-img" />
-              <h1 className="brand-title">Zess Online Chess</h1>
-</div>
- <p>
-  Giao diện xác thực cho ứng dụng desktop. Người chơi có thể đăng nhập
-  hoặc đăng ký tài khoản trước khi vào sảnh game.
-</p>
+            <h1 className="brand-title">Zess Online Chess</h1>
+          </div>
+          <p>
+            Giao diện xác thực cho ứng dụng desktop. Người chơi có thể đăng nhập
+            hoặc đăng ký tài khoản trước khi vào sảnh game.
+          </p>
 
-<hr />
+          <hr />
 
-<p>
-  Là sản phẩm đồ án của nhóm 11 của lớp NT106.Q23.ANTT của UIT
-</p>
+          <p>
+            Là sản phẩm đồ án của nhóm 11 của lớp NT106.Q23.ANTT của UIT
+          </p>
         </div>
 
         <div className="auth-right">

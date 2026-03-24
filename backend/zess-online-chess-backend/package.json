@@ -13,6 +13,7 @@
     "build": "npx tsc"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.100.0",
     "@types/node": "^25.5.0",
     "bcrypt": "^6.0.0",
     "cors": "^2.8.6",

@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { authRouter } from "./auth.router";
 
 const router: Router = Router();
 
@@ -8,5 +9,7 @@ router.get("/ping", (req, res) => {
         timestamp: new Date().toISOString()
     });
 });
+
+router.use("/auth", authRouter);
 
 export { router };

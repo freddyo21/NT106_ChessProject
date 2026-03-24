@@ -1,8 +1,9 @@
 import { Server as HttpServer } from "node:http";
 import { Server, Socket } from "socket.io";
-import { roomManagementSocket } from "./room-management-socket";
-import { gameplaySocket } from "./gameplay-socket";
+import { roomManagementSocket } from "./room-management.socket";
+import { gameplaySocket } from "./gameplay.socket";
 import { Logger } from "../utils/Logger";
+import { chatSocket } from "./chat.socket";
 
 export function socketInitialize(httpServer: HttpServer) {
     const io = new Server(httpServer, {
@@ -13,7 +14,7 @@ export function socketInitialize(httpServer: HttpServer) {
     });
 
     io.on("connection", (socket: Socket) => {
-        Logger.log("A user connected", socket.id);
+        Logger.log("An user connected", socket.id);
 
         socket.onAny((eventName, ...args) => {
             if (process.env.NODE_ENV !== "production") {
@@ -21,11 +22,27 @@ export function socketInitialize(httpServer: HttpServer) {
             }
         });
 
+        // Store socket and user connection info
+        socket.on("user:authenticate", (userId: string) => {
+            socket.data.userId = userId;
+            socket.data.isOnline = true;
+            socket.join(`user:${userId}`);
+            Logger.log("User authenticated", { socketId: socket.id, userId });
+        });
+
         gameplaySocket(socket);
+        chatSocket(socket); // Should push the messages received to the database for history
         roomManagementSocket(socket);
 
         socket.on("disconnect", () => {
-            Logger.log("A user disconnected", socket.id);
+            const userId = socket.data.userId;
+            socket.data.isOnline = false;
+            Logger.log("An user disconnected", { socketId: socket.id, userId });
+
+            // Notify others about user going offline
+            if (userId) {
+                io.emit("user:offline", { userId, socketId: socket.id });
+            }
         });
     });
 

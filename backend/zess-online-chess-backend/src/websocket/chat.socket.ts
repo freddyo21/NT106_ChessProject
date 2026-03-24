@@ -1,7 +1,37 @@
 import { Socket } from "socket.io";
 import { Logger } from "../utils/Logger";
+import { createSocketRateLimiter } from "../middlewares/socket.limiter";
+
+const chatRateLimiter = createSocketRateLimiter({
+    rules: {
+        send_message: {
+            windowMs: 5_000,
+            max: 5,
+            blockDurationMs: 15_000
+        },
+        typing: {
+            windowMs: 3_000,
+            max: 12
+        },
+        "*": {
+            windowMs: 1_000,
+            max: 25
+        }
+    },
+    keyGenerator: (socket) =>
+        String(socket.data?.user?.id ?? socket.handshake.address ?? socket.id),
+    onRateLimited: (socket, eventName, details) => {
+        socket.emit("chat:rate_limited", {
+            event: eventName,
+            retryAfterMs: details.retryAfterMs,
+            message: "You are sending messages too quickly. Please wait a moment."
+        });
+    }
+});
 
 export function chatSocket(socket: Socket) {
+    socket.use(chatRateLimiter.middleware(socket));
+
     socket.on("send_message", (data) => {
         const { roomId, message, username } = data;
 

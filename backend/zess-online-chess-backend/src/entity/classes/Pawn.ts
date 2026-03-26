@@ -6,7 +6,7 @@ import { Piece } from "./Piece";
 export class Pawn extends Piece {
     readonly type = "pawn";
 
-    readonly movementVectors = [
+    readonly movementVectors: ReadonlyArray<Position> = [
         { row: 1, col: 0 },     // forward
         { row: 2, col: 0 },     // double forward (only from starting position)
         { row: 1, col: -1 },    // capture left
@@ -44,7 +44,7 @@ export class Pawn extends Piece {
 
                 if (
                     currentPos.row === startRow &&
-                    !this._hasMoved &&
+                    !this.hasMoved &&
                     ChessBoard.isInsideBoard(middleRow, currentPos.col) &&
                     board[middleRow]?.[currentPos.col] === null &&
                     targetPiece === null

@@ -15,7 +15,9 @@ export class ChessBoard {
 
     private kingPositions: { white: Position; black: Position };
     private currentTurn: Color = "white";
-
+    private halfMoveClock = 0;
+    private enPassantTarget: Position | null = null;
+    
     private readonly xCoord = {
         a: 0,
         b: 1,
@@ -35,6 +37,14 @@ export class ChessBoard {
 
     public getCurrentTurn(): Color {
         return this.currentTurn;
+    }
+
+    private switchTurn(): void {
+        this.currentTurn = this.currentTurn === "white" ? "black" : "white";
+    }
+
+    private isPlayersTurn(piece: Piece): boolean {
+        return piece.color === this.currentTurn;
     }
 
     private findInitialKingPositions(): { white: Position; black: Position } {
@@ -129,7 +139,7 @@ export class ChessBoard {
     }
 
     public getBoard(): (Piece | null)[][] {
-        return this.board;
+        return this.board.map((row) => [...row]);
     }
 
     public getKingPosition(color: Color): Position {
@@ -151,6 +161,15 @@ export class ChessBoard {
             }
         }
 
+        if (piece.type === "pawn") {
+            const enPassantMoves = this.getEnPassantMoves(from, piece.color);
+            for (const move of enPassantMoves) {
+                if (!this.wouldLeaveKingInCheck(from, move, piece.color)) {
+                    legalMoves.push(move);
+                }
+            }
+        }
+
         if (piece.type === "king") {
             const castlingMoves = this.getCastlingMoves(from, piece.color);
             for (const move of castlingMoves) {
@@ -167,14 +186,15 @@ export class ChessBoard {
             return false;
         }
 
-        if (piece.color !== this.currentTurn) {
+        if (!this.isPlayersTurn(piece)) {
             return false;
         }
-
+       
         const legalMoves = this.getLegalMoves(from);
-        const isLegal = legalMoves.some(
+        const isLegal=legalMoves.some(
             (move) => move.row === to.row && move.col === to.col
-        );
+
+        )
 
         if (!isLegal) {
             return false;
@@ -183,8 +203,7 @@ export class ChessBoard {
 
         this.history.push(this.saveSnapshot());
         this.applyMove(from, to);
-
-        this.currentTurn = this.currentTurn === "white" ? "black" : "white";
+        this.switchTurn();
 
         return true;
     }
@@ -205,16 +224,39 @@ export class ChessBoard {
             return;
         }
 
+        const targetPiece = this.getPieceAt(to);
+        const isPawnMove = piece.type === "pawn";
+        let isCapture = targetPiece !== null;
+
+        const previousEnPassantTarget = this.enPassantTarget
+            ? { ...this.enPassantTarget }
+            : null;
+        this.enPassantTarget = null;
+
         const isCastling =
             piece.type === "king" &&
             from.row === to.row &&
             Math.abs(to.col - from.col) === 2;
 
+        const isEnPassantCapture = 
+            piece.type === "pawn" &&
+            previousEnPassantTarget !== null &&
+            to.row === previousEnPassantTarget.row &&
+            to.col === previousEnPassantTarget.col &&
+            from.col !== to.col &&
+            targetPiece === null;
+        
+        if (isEnPassantCapture) {
+            const capturedPawnRow = piece.color === "white" ? to.row + 1: to.row -1;
+            this.setPieceAt({ row: capturedPawnRow, col: to.col }, null);
+            isCapture = true;
+        }
+
         this.setPieceAt(from, null);
         this.setPieceAt(to, piece);
 
         if (piece.type === "king") {
-            this.kingPositions[piece.color] = { row: to.row, col: to.col };
+        this.kingPositions[piece.color] = { row: to.row, col: to.col };
         }
 
         if (isCastling) {
@@ -238,6 +280,29 @@ export class ChessBoard {
                     this.setPieceAt(rookTo, rook);
                     rook.setMoved();
                 }
+            }
+        }
+
+        if (piece.type === "pawn" && Math.abs(to.row - from.row) === 2) {
+            this.enPassantTarget = {
+                row: (from.row + to.row) /2,
+                col: from.col,
+            };
+        }
+
+        if (isPawnMove || isCapture) {
+            this.halfMoveClock = 0;
+        } else {
+            this.halfMoveClock++;
+        }
+
+        if (piece.type === "pawn") {
+            const promotionRow = piece.color === "white" ? 0 : 7;
+            if (to.row === promotionRow) {
+                const promotedQueen = new Queen(piece.color);
+                promotedQueen.setMoved();
+                this.setPieceAt(to, promotedQueen);
+                return;
             }
         }
 
@@ -307,6 +372,42 @@ export class ChessBoard {
         return castlingMoves;
     }
 
+    private getEnPassantMoves(from: Position, color: Color): Position[] {
+        if (!this.enPassantTarget) {
+            return [];
+        }
+
+        const piece = this.getPieceAt(from);
+        if (!piece || piece.type !== "pawn") {
+            return [];
+        }
+
+        const direction = color === "white" ? -1 : 1;
+        const expectedRow = from.row + direction;
+
+        if (
+            this.enPassantTarget.row !== expectedRow ||
+            Math.abs(this.enPassantTarget.col - from.col) !== 1
+        ) {
+            return [];
+        }
+
+        const adjacentPawn = this.getPieceAt({
+            row: from.row,
+            col: this.enPassantTarget.col,
+        });
+
+        if (
+            adjacentPawn &&
+            adjacentPawn.type === "pawn" &&
+            adjacentPawn.color !== color
+        ) {
+            return [{ ...this.enPassantTarget }];
+        }
+
+        return [];
+    }
+
     private wouldLeaveKingInCheck(
         from: Position,
         to: Position,
@@ -323,6 +424,10 @@ export class ChessBoard {
     private isKingInCheck(color: Color): boolean {
         const enemyColor: Color = color === "white" ? "black" : "white";
         return this.isSquareUnderAttack(this.kingPositions[color], enemyColor);
+    }
+
+    public isCheck(color: Color): boolean {
+        return this.isKingInCheck(color);
     }
 
     private isSquareUnderAttack(target: Position, byColor: Color): boolean {
@@ -383,6 +488,108 @@ export class ChessBoard {
         return false;
     }
 
+    public hasAnyLegalMoves(color: Color): boolean {
+        for (let row = 0; row < 8; row++) {
+            for (let col = 0; col < 8; col++) {
+                const piece = this.board[row]?.[col];
+                if (!piece || piece.color !== color) {
+                    continue;
+                }
+
+                const moves = this.getLegalMoves({ row, col});
+                if (moves.length > 0) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    public isCheckmate(color: Color): boolean {
+        return this.isKingInCheck(color) && !this.hasAnyLegalMoves(color);
+    }
+
+    public isStalemate(color: Color): boolean {
+        return !this.isKingInCheck(color) && !this.hasAnyLegalMoves(color);
+    }
+
+    public isInsufficientMaterial(): boolean {
+        const nonKingPieces: { piece: Piece; position: Position }[] = [];
+
+        for (let row = 0; row < 8; row++) {
+            for (let col = 0; col < 8; col++) {
+                const piece = this.board[row]?.[col];
+                if (!piece) {
+                    continue;
+                }
+
+                if (piece.type !== "king") {
+                    nonKingPieces.push({
+                        piece,
+                        position: { row, col },
+                    });
+                }
+            }
+        }
+
+        // King vs King
+        if (nonKingPieces.length === 0) {
+            return true;
+        }
+
+        // King + Bishop vs King
+        // King + Knight vs King
+        if (
+            nonKingPieces.length === 1 &&
+            (nonKingPieces[0]?.piece.type === "bishop" ||
+                nonKingPieces[0]?.piece.type === "knight")
+        ) {
+            return true;
+        }
+
+        // King + Bishop vs King + Bishop 
+        if (
+            nonKingPieces.length === 2 &&
+            nonKingPieces[0]?.piece.type === "bishop" &&
+            nonKingPieces[1]?.piece.type === "bishop"
+        ) {
+            const bishop1 = nonKingPieces[0].position;
+            const bishop2 = nonKingPieces[1].position;
+
+            const bishop1SquareColor = (bishop1.row + bishop1.col) % 2;
+            const bishop2SquareColor = (bishop2.row + bishop2.col) % 2;
+
+            return bishop1SquareColor === bishop2SquareColor;
+        }   
+
+        return false;
+    }
+
+    public isFiftyMoveRule(): boolean {
+        return this.halfMoveClock >= 100;
+    }
+
+    public getGameStatus(): string {
+        if (this.isCheckmate("white"))
+            return "black_wins";
+
+        if (this.isCheckmate("black")) 
+            return "white_wins";
+
+        if (this.isStalemate("white") || this.isStalemate("black")) 
+            return "stalemate";
+
+        if (this.isInsufficientMaterial()) 
+            return "draw_insufficient_material";
+    
+        if (this.isFiftyMoveRule()) 
+            return "draw_fifty_move_rule";
+
+        if (this.isKingInCheck(this.currentTurn)) 
+            return "check";
+
+        return "playing";
+    }
 
     private saveSnapshot(): BoardSnapshot {
         return {
@@ -402,6 +609,8 @@ export class ChessBoard {
                 black: { ...this.kingPositions.black },
             },
             currentTurn: this.currentTurn,
+            halfMoveClock: this.halfMoveClock,
+            enPassantTarget: this.enPassantTarget ? { ...this.enPassantTarget } : null,
         };
     }
 
@@ -416,6 +625,12 @@ export class ChessBoard {
             white: { ...snapshot.kingPositions.white },
             black: { ...snapshot.kingPositions.black },
         };
+        
+        this.currentTurn = snapshot.currentTurn;
+        this.halfMoveClock = snapshot.halfMoveClock;
+        this.enPassantTarget = snapshot.enPassantTarget
+            ? { ...snapshot.enPassantTarget }
+            : null;
     }
 
     private createPieceFromSnapshot(snapshot: PieceSnapshot): Piece {
@@ -440,6 +655,8 @@ export class ChessBoard {
             case "king":
                 piece = new King(snapshot.color);
                 break;
+            default:
+                throw new Error(`Unknown piece type: ${snapshot.type}`);
         }
 
         if (snapshot.hasMoved) {
@@ -452,4 +669,7 @@ export class ChessBoard {
     public static isInsideBoard(row: number, col: number): boolean {
         return row >= 0 && col >= 0 && row < 8 && col < 8;
     }
+
+    
 }
+

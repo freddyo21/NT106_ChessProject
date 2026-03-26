@@ -7,8 +7,8 @@ export class King extends Piece {
     readonly type = "king";
 
     readonly movementVectors = [
-        { row: 1, col: 0 },     // up
-        { row: -1, col: 0 },    // down
+        { row: 1, col: 0 },     // down
+        { row: -1, col: 0 },    // up
         { row: 0, col: -1 },    // left
         { row: 0, col: 1 },     // right
         { row: 1, col: -1 },    // up-left

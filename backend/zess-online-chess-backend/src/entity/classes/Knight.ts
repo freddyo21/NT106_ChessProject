@@ -7,14 +7,14 @@ export class Knight extends Piece {
     readonly type = "knight";
 
     readonly movementVectors = [
-        { row: 2, col: 1 },     // up-right
-        { row: 2, col: -1 },    // up-left
-        { row: -2, col: 1 },    // down-right
-        { row: -2, col: -1 },   // down-left
-        { row: 1, col: 2 },     // right-up
-        { row: 1, col: -2 },    // left-up
-        { row: -1, col: 2 },    // right-down
-        { row: -1, col: -2 },   // left-down
+        { row: 2, col: 1 },     // down-down-right
+        { row: 2, col: -1 },    // down-down-left
+        { row: -2, col: 1 },    // up-up-right
+        { row: -2, col: -1 },   // up-up-left
+        { row: 1, col: 2 },     // down-right-right
+        { row: 1, col: -2 },    // down-left-left
+        { row: -1, col: 2 },    // up-right-right
+        { row: -1, col: -2 },   // up-left-left
     ];
 
     constructor(color: Color) {

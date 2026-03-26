@@ -6,9 +6,9 @@ import { Piece } from "./Piece";
 export class Rook extends Piece {
     readonly type = "rook";
 
-    readonly movementVectors: Position[] = [
-        { row: 1, col: 0 },     // Up
-        { row: -1, col: 0 },    // Down
+readonly movementVectors: ReadonlyArray<Position> = [     
+        { row: 1, col: 0 },     // Down
+        { row: -1, col: 0 },    // Up
         { row: 0, col: -1 },    // Left
         { row: 0, col: 1 },     // Right
     ] as const;

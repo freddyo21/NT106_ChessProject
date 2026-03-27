@@ -1,7 +1,7 @@
 import { pool } from "../config/database.config";
-import { AuthRow } from "../entity/types/AuthRow";
+import { AuthRow } from "../entities/types/AuthRow";
 import bcrypt from "bcrypt";
-import { UserRow } from "../entity/types/UserRow";
+import { UserRow } from "../entities/types/UserRow";
 
 export const login = async (email: string, password: string) => {
     const normalizedEmail = email.trim().toLowerCase();

@@ -2,6 +2,9 @@ import { Request, Response } from 'express';
 import * as authService from "../services/auth.service";
 import { InvalidCredentialException } from '../exceptions/InvalidCredentialException';
 
+const EXPIRY_SHORT = 3600; // 1 Giờ
+const EXPIRY_LONG = 2592000; // 30 Ngày (3600 * 24 * 30)
+
 export const login = async (req: Request, res: Response) => {
     const { email, password } = req.body;
 
@@ -91,5 +94,5 @@ export const register = async (req: Request, res: Response) => {
 }
 
 export const logout = async (req: Request, res: Response) => {
-    
+
 };

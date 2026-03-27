@@ -1,5 +1,5 @@
 import { pool } from "../config/database.config";
-import { UserRow } from "../entity/types/UserRow";
+import { UserRow } from "../entities/types/UserRow";
 
 export const findByEmail = async (email: string) => {
     const result = await pool.query<UserRow>(

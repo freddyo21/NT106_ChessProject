@@ -13,12 +13,14 @@ export const socketInitialize = (httpServer: HttpServer) => {
         }
     });
 
+    const logger = new Logger();
+
     io.on("connection", (socket: Socket) => {
-        Logger.log("An user connected", socket.id);
+        logger.log("An user connected", socket.id);
 
         socket.onAny((eventName, ...args) => {
             if (process.env.NODE_ENV !== "production") {
-                Logger.debug(`Incoming Event: ${eventName}`, ...args);
+                logger.debug(`Incoming Event: ${eventName}`, ...args);
             }
         });
 
@@ -27,7 +29,7 @@ export const socketInitialize = (httpServer: HttpServer) => {
             socket.data.userId = userId;
             socket.data.isOnline = true;
             socket.join(`user:${userId}`);
-            Logger.log("User authenticated", { socketId: socket.id, userId });
+            logger.log("User authenticated", { socketId: socket.id, userId });
         });
 
         gameplaySocket(socket);
@@ -37,7 +39,7 @@ export const socketInitialize = (httpServer: HttpServer) => {
         socket.on("disconnect", () => {
             const userId = socket.data.userId;
             socket.data.isOnline = false;
-            Logger.log("An user disconnected", { socketId: socket.id, userId });
+            logger.log("An user disconnected", { socketId: socket.id, userId });
 
             // Notify others about user going offline
             if (userId) {

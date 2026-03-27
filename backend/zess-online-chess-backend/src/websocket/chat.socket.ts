@@ -32,6 +32,7 @@ const chatRateLimiter = createSocketRateLimiter({
 
 export const chatSocket = async (socket: Socket) => {
     socket.use(chatRateLimiter.middleware(socket));
+    const logger = new Logger("chat");
 
     socket.on("send_message", async (data) => {
         try {

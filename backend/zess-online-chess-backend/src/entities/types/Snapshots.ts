@@ -12,4 +12,6 @@ export type BoardSnapshot = {
     board: (PieceSnapshot | null)[][];
     kingPositions: { white: Position; black: Position };
     currentTurn: Color;
+    halfMoveClock: number;
+    enPassantTarget: Position | null;
 };

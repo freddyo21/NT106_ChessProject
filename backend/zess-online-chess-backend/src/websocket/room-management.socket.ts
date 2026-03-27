@@ -25,7 +25,9 @@ const getAvailableColor = (players: RoomPlayer[]): PlayerColor | null => {
     return null;
 }
 
-export const roomManagementSocket = (socket: Socket) => {
+export function roomManagementSocket(socket: Socket) {
+    const logger = new Logger("room");
+
     socket.on("join_room", (roomId: string) => {
         if (!roomId) {
             return socket.emit("room_error", "Room ID is required to join a room.");
@@ -79,7 +81,7 @@ export const roomManagementSocket = (socket: Socket) => {
             });
         }
 
-        Logger.log(`User ${socket.id} has joined room ${roomId}`);
+        logger.log(`User ${socket.id} has joined room ${roomId}`);
     });
 
     socket.on("leave_room", (roomId: string) => {
@@ -105,7 +107,7 @@ export const roomManagementSocket = (socket: Socket) => {
             socket.to(roomId).emit("player_left", { socketId: socket.id });
         }
 
-        Logger.log(`User ${socket.id} has left room ${roomId}`);
+        logger.log(`User ${socket.id} has left room ${roomId}`);
     });
 
     socket.on("disconnect", () => {
@@ -127,7 +129,7 @@ export const roomManagementSocket = (socket: Socket) => {
                 socket.to(roomId).emit("player_left", { socketId: socket.id });
             }
 
-            Logger.log(`User ${socket.id} disconnected from room ${roomId}`);
+            logger.log(`User ${socket.id} disconnected from room ${roomId}`);
         }
     });
 }

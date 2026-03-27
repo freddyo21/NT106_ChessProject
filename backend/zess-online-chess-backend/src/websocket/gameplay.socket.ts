@@ -1,9 +1,9 @@
 import { Socket } from "socket.io";
-import { Position } from "../entity/types/Position";
+import { Position } from "../entities/types/Position";
 import { getGameRoom } from "./room-management.socket";
-import { AuthorizedRoomContext, GameActionCallback, GameRoom, GameStatePayload } from "../entity/types/Gameplay";
+import { AuthorizedRoomContext, GameActionCallback, GameRoom, GameStatePayload } from "../entities/types/Gameplay";
 
-export function gameplaySocket(socket: Socket) {
+export const gameplaySocket = (socket: Socket) => {
     const emitGameError = (callback: GameActionCallback | undefined, err: unknown) => {
         const msg = err instanceof Error ? err.message : "Unknown";
         socket.emit("game_error", { message: msg });

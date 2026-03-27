@@ -1,6 +1,6 @@
 import { Socket } from "socket.io";
 import { Logger } from "../utils/Logger";
-import { ChessBoard } from "../entity/classes/ChessBoard";
+import { ChessBoard } from "../entities/classes/ChessBoard";
 
 type PlayerColor = "white" | "black";
 
@@ -16,7 +16,7 @@ type GameRoom = {
 
 const gameRooms: Record<string, GameRoom> = {};
 
-function getAvailableColor(players: RoomPlayer[]): PlayerColor | null {
+const getAvailableColor = (players: RoomPlayer[]): PlayerColor | null => {
     const hasWhite = players.some((player) => player.color === "white");
     const hasBlack = players.some((player) => player.color === "black");
 
@@ -25,7 +25,7 @@ function getAvailableColor(players: RoomPlayer[]): PlayerColor | null {
     return null;
 }
 
-export function roomManagementSocket(socket: Socket) {
+export const roomManagementSocket = (socket: Socket) => {
     socket.on("join_room", (roomId: string) => {
         if (!roomId) {
             return socket.emit("room_error", "Room ID is required to join a room.");

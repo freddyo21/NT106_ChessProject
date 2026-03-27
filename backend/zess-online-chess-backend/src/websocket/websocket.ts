@@ -5,7 +5,7 @@ import { gameplaySocket } from "./gameplay.socket";
 import { Logger } from "../utils/Logger";
 import { chatSocket } from "./chat.socket";
 
-export function socketInitialize(httpServer: HttpServer) {
+export const socketInitialize = (httpServer: HttpServer) => {
     const io = new Server(httpServer, {
         cors: {
             origin: process.env.FRONTEND_CORS_ALLOWED || "http://localhost:1420",

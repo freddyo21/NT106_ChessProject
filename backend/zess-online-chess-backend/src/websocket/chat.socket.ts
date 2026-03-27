@@ -1,6 +1,7 @@
 import { Socket } from "socket.io";
 import { Logger } from "../utils/Logger";
 import { createSocketRateLimiter } from "../middlewares/socket.limiter";
+import { chatFilter } from "../services/chat.service";
 
 const chatRateLimiter = createSocketRateLimiter({
     rules: {
@@ -29,25 +30,34 @@ const chatRateLimiter = createSocketRateLimiter({
     }
 });
 
-export function chatSocket(socket: Socket) {
+export const chatSocket = async (socket: Socket) => {
     socket.use(chatRateLimiter.middleware(socket));
 
-    socket.on("send_message", (data) => {
-        const { roomId, message, username } = data;
+    socket.on("send_message", async (data) => {
+        try {
+            if (!data || typeof data !== "object") return;
 
-        // Task: [ATTT] Filter sensitive content or prevent spam
-        if (message.length > 200) {
-            return socket.emit("chat_error", "Message is too long!");
+            const { roomId, message, username } = data;
+            const filteredMessage = await chatFilter(message);
+
+            if (!roomId || !username || !filteredMessage) return;
+
+            if (!socket.rooms.has(roomId)) return;
+
+            Logger.log(`
+                CHAT_MESSAGE | Room: ${roomId} | User: ${username} | Content: ${filteredMessage}
+            `);
+
+            socket.to(roomId).emit("receive_message", {
+                username,
+                message: filteredMessage,
+                timestamp: new Date().toISOString()
+            });
+        } catch (error) {
+            Logger.error("SEND_MESSAGE_ERROR", error);
+            socket.emit("chat_error", {
+                message: "Invalid message payload"
+            });
         }
-
-        // Log chat history to activity file by date
-        Logger.log("CHAT_MESSAGE | Room: " + roomId + " | User: " + username + " | Content: " + message);
-
-        // Broadcast message to users in the room
-        socket.to(roomId).emit("receive_message", {
-            username,
-            message,
-            timestamp: new Date().toISOString()
-        });
     });
 }

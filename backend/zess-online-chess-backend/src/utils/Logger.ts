@@ -5,6 +5,7 @@ type LogLevel = "LOG" | "ERROR" | "DEBUG";
 
 export class Logger {
     private static readonly logDir = path.join(__dirname, "../../logs");
+    private static _fileType: string = "";
 
     private static async ensureLogDir(): Promise<void> {
         await fs.promises.mkdir(this.logDir, { recursive: true });
@@ -15,9 +16,18 @@ export class Logger {
         return `[${timestamp}] [${level}] ${message}${args.length ? ` ${JSON.stringify(args)}` : ""}\n`;
     }
 
+    public static get fileType(): string
+    {
+        return this._fileType;
+    }
+
+    public static set fileType(type: string) {
+        this._fileType = type;
+    }
+
     private static getLogPath(level: LogLevel, now: Date): string {
         const date = now.toISOString().split("T")[0];
-        const fileName = `zess-${level.toLowerCase()}-${date}.log`;
+        const fileName = `zess-${this._fileType}-${level.toLowerCase()}-${date}.log`;
         return path.join(this.logDir, fileName);
     }
 

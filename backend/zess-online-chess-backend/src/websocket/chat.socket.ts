@@ -31,6 +31,7 @@ const chatRateLimiter = createSocketRateLimiter({
 
 export function chatSocket(socket: Socket) {
     socket.use(chatRateLimiter.middleware(socket));
+    const logger = new Logger("chat");
 
     socket.on("send_message", (data) => {
         const { roomId, message, username } = data;
@@ -41,7 +42,7 @@ export function chatSocket(socket: Socket) {
         }
 
         // Log chat history to activity file by date
-        Logger.log("CHAT_MESSAGE | Room: " + roomId + " | User: " + username + " | Content: " + message);
+        logger.log("CHAT_MESSAGE | Room: " + roomId + " | User: " + username + " | Content: " + message);
 
         // Broadcast message to users in the room
         socket.to(roomId).emit("receive_message", {

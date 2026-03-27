@@ -48,7 +48,7 @@ const corsOptions: cors.CorsOptions = {
 };
 
 // Ensure CORS headers (especially credentials) are set for preflight requests
-app.options("*", cors(corsOptions));
+app.options(/(.*)/, cors(corsOptions));
 
 app.use(cors(corsOptions));
 
@@ -67,7 +67,7 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 
 /**
  * ---------------------------------------------------------
- * 3. PUBLIC ROUTES (No Auth/AppCheck required)
+ * 3. PUBLIC ROUTES (No protection)
  * ---------------------------------------------------------
  */
 
@@ -102,5 +102,5 @@ app.use(errorHandler);
 const PORT = process.env.PORT || 3001;
 
 httpServer.listen(PORT, () => {
-    console.log("Hệ thống Zess Chess đang chạy tại: " + PORT);
+    console.log("Zess Chess system is running at: " + PORT);
 });

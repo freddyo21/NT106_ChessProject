@@ -4,6 +4,8 @@ import { JwtInvalidException } from '../exceptions/JwtInvalidException';
 import { Logger } from '../utils/Logger';
 import { User } from '../entities/classes/User';
 
+const logger = new Logger("jwt");
+
 const getSecretKey = (): string => {
     const key = process.env.JWT_SECRET_KEY;
 
@@ -53,20 +55,20 @@ export const validateToken = (token: string) => {
 
         return decoded;
     } catch (ex: unknown) {
-        Logger.fileType = "jwt";
+        logger.fileType = "jwt";
 
         if (ex instanceof jwt.TokenExpiredError) {
             console.error(`Expired JWT token`);
-            Logger.error(`Expired JWT token`);
+            logger.error(`Expired JWT token`);
         } else if (ex instanceof jwt.JsonWebTokenError) {
             console.error(`Invalid JWT token`);
-            Logger.error(`Invalid JWT token`);
+            logger.error(`Invalid JWT token`);
         } else if (ex instanceof jwt.NotBeforeError) {
             console.error(`JWT not active`);
-            Logger.error(`JWT not active`);
+            logger.error(`JWT not active`);
         } else {
             console.error(`JWT error`);
-            Logger.error(`JWT error: ${ex}`);
+            logger.error(`JWT error: ${ex}`);
         }
 
         // Convert all JWT-related errors to JwtInvalidException

@@ -41,7 +41,7 @@ export const validateToken = (token: string) => {
     try {
         const secret = getSecretKey();
 
-        const decoded = jwt.verify(token, getSecretKey(), {
+        const decoded = jwt.verify(token, secret, {
             algorithms: ["ES256", "ES384", "ES512"],
             clockTolerance: 30
         })

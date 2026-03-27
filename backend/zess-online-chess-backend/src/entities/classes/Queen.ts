@@ -6,15 +6,15 @@ import { Piece } from "./Piece";
 export class Queen extends Piece {
     readonly type = "queen" as const;
 
-readonly movementVectors: ReadonlyArray<Position> = [     
-        { row: 1, col: 0 },     // Down
-        { row: -1, col: 0 },    // Up
+    readonly movementVectors: Position[] = [
+        { row: 1, col: 0 },     // Up
+        { row: -1, col: 0 },    // Down
         { row: 0, col: 1 },     // Right
         { row: 0, col: -1 },    // Left
-        { row: -1, col: 1 },    // Up-Right
-        { row: -1, col: -1 },   // Up-Left
-        { row: 1, col: 1 },     // Down-Right
-        { row: 1, col: -1 },    // Down-Left
+        { row: -1, col: 1 },    // Down-Right
+        { row: -1, col: -1 },   // Down-Left
+        { row: 1, col: 1 },     // Up-Right
+        { row: 1, col: -1 },    // Up-Left
     ] as const;
 
     constructor(color: Color) {

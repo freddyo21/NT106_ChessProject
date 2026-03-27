@@ -17,7 +17,7 @@ export class ChessBoard {
     private currentTurn: Color = "white";
     private halfMoveClock = 0;
     private enPassantTarget: Position | null = null;
-    
+
     private readonly xCoord = {
         a: 0,
         b: 1,
@@ -33,7 +33,6 @@ export class ChessBoard {
         this.board = this.initializeBoard();
         this.kingPositions = this.findInitialKingPositions();
     }
-
 
     public getCurrentTurn(): Color {
         return this.currentTurn;
@@ -139,7 +138,7 @@ export class ChessBoard {
     }
 
     public getBoard(): (Piece | null)[][] {
-        return this.board.map((row) => [...row]);
+        return this.board;
     }
 
     public getKingPosition(color: Color): Position {
@@ -189,17 +188,15 @@ export class ChessBoard {
         if (!this.isPlayersTurn(piece)) {
             return false;
         }
-       
-        const legalMoves = this.getLegalMoves(from);
-        const isLegal=legalMoves.some(
-            (move) => move.row === to.row && move.col === to.col
 
-        )
+        const legalMoves = this.getLegalMoves(from);
+        const isLegal = legalMoves.some(
+            (move) => move.row === to.row && move.col === to.col
+        );
 
         if (!isLegal) {
             return false;
         }
-
 
         this.history.push(this.saveSnapshot());
         this.applyMove(from, to);
@@ -238,25 +235,27 @@ export class ChessBoard {
             from.row === to.row &&
             Math.abs(to.col - from.col) === 2;
 
-        const isEnPassantCapture = 
+        const isEnPassantCapture =
             piece.type === "pawn" &&
             previousEnPassantTarget !== null &&
             to.row === previousEnPassantTarget.row &&
             to.col === previousEnPassantTarget.col &&
             from.col !== to.col &&
             targetPiece === null;
-        
+
         if (isEnPassantCapture) {
-            const capturedPawnRow = piece.color === "white" ? to.row + 1: to.row -1;
-            this.setPieceAt({ row: capturedPawnRow, col: to.col }, null);
-            isCapture = true;
+            if (Math.abs(from.col - to.col) === 1) {
+                const capturedPawnRow = piece.color === "white" ? to.row + 1 : to.row - 1;
+                this.setPieceAt({ row: capturedPawnRow, col: to.col }, null);
+                isCapture = true;
+            }
         }
 
         this.setPieceAt(from, null);
         this.setPieceAt(to, piece);
 
         if (piece.type === "king") {
-        this.kingPositions[piece.color] = { row: to.row, col: to.col };
+            this.kingPositions[piece.color] = { row: to.row, col: to.col };
         }
 
         if (isCastling) {
@@ -285,7 +284,7 @@ export class ChessBoard {
 
         if (piece.type === "pawn" && Math.abs(to.row - from.row) === 2) {
             this.enPassantTarget = {
-                row: (from.row + to.row) /2,
+                row: (from.row + to.row) / 2,
                 col: from.col,
             };
         }
@@ -431,57 +430,103 @@ export class ChessBoard {
     }
 
     private isSquareUnderAttack(target: Position, byColor: Color): boolean {
-        for (let row = 0; row < 8; row++) {
-            for (let col = 0; col < 8; col++) {
-                const piece = this.board[row]?.[col];
-                if (!piece || piece.color !== byColor) {
-                    continue;
-                }
+        // Check Pawn attacks (2 diagonals phía trước)
+        const pawnDirection = byColor === "white" ? -1 : 1;
+        const pawnAttacks = [
+            { row: target.row - pawnDirection, col: target.col - 1 },
+            { row: target.row - pawnDirection, col: target.col + 1 },
+        ];
+        for (const pos of pawnAttacks) {
+            if (!ChessBoard.isInsideBoard(pos.row, pos.col)) continue;
 
-                if (piece.type === "pawn") {
-                    const direction = byColor === "white" ? -1 : 1;
-                    const attackLeft = { row: row + direction, col: col - 1 };
-                    const attackRight = { row: row + direction, col: col + 1 };
+            const piece = this.getPieceAt(pos);
+            if (piece?.type === "pawn" && piece.color === byColor) {
+                return true;
+            }
+        }
 
-                    if (
-                        (ChessBoard.isInsideBoard(attackLeft.row, attackLeft.col) &&
-                            attackLeft.row === target.row &&
-                            attackLeft.col === target.col) ||
-                        (ChessBoard.isInsideBoard(attackRight.row, attackRight.col) &&
-                            attackRight.row === target.row &&
-                            attackRight.col === target.col)
-                    ) {
+        // Check Knight attacks (8 hướng L-shape)
+        const knightMoves = [
+            { row: target.row - 2, col: target.col - 1 },
+            { row: target.row - 2, col: target.col + 1 },
+            { row: target.row - 1, col: target.col - 2 },
+            { row: target.row - 1, col: target.col + 2 },
+            { row: target.row + 1, col: target.col - 2 },
+            { row: target.row + 1, col: target.col + 2 },
+            { row: target.row + 2, col: target.col - 1 },
+            { row: target.row + 2, col: target.col + 1 },
+        ];
+        for (const pos of knightMoves) {
+            if (!ChessBoard.isInsideBoard(pos.row, pos.col)) continue;
+            const piece = this.getPieceAt(pos);
+            if (piece?.type === "knight" && piece.color === byColor) {
+                return true;
+            }
+        }
+
+        // Check King attacks (8 hướng adjacent)
+        const kingMoves = [
+            { row: target.row - 1, col: target.col - 1 },
+            { row: target.row - 1, col: target.col },
+            { row: target.row - 1, col: target.col + 1 },
+            { row: target.row, col: target.col - 1 },
+            { row: target.row, col: target.col + 1 },
+            { row: target.row + 1, col: target.col - 1 },
+            { row: target.row + 1, col: target.col },
+            { row: target.row + 1, col: target.col + 1 },
+        ];
+        for (const pos of kingMoves) {
+            if (!ChessBoard.isInsideBoard(pos.row, pos.col)) continue;
+            const piece = this.getPieceAt(pos);
+            if (piece?.type === "king" && piece.color === byColor) {
+                return true;
+            }
+        }
+
+        // Check Rook/Queen attacks (4 directions: up,down,left,right)
+        const straightDirections = [
+            { row: -1, col: 0 }, // up
+            { row: 1, col: 0 },  // down
+            { row: 0, col: -1 }, // left
+            { row: 0, col: 1 },  // right
+        ];
+        for (const dir of straightDirections) {
+            let r = target.row + dir.row;
+            let c = target.col + dir.col;
+
+            while (ChessBoard.isInsideBoard(r, c)) {
+                const piece = this.getPieceAt({ row: r, col: c });
+                if (piece) {
+                    if ((piece.type === "rook" || piece.type === "queen") && piece.color === byColor) {
                         return true;
                     }
-
-                    continue;
+                    break; // Stop khi gặp quân bất kỳ
                 }
+                r += dir.row;
+                c += dir.col;
+            }
+        }
 
-                if (piece.type === "king") {
-                    for (const vector of piece.movementVectors) {
-                        const attackRow = row + vector.row;
-                        const attackCol = col + vector.col;
-
-                        if (
-                            ChessBoard.isInsideBoard(attackRow, attackCol) &&
-                            attackRow === target.row &&
-                            attackCol === target.col
-                        ) {
-                            return true;
-                        }
+        // Check Bishop/Queen attacks (4 diagonals)
+        const diagonalDirections = [
+            { row: -1, col: -1 }, // up-left
+            { row: -1, col: 1 },  // up-right
+            { row: 1, col: -1 },  // down-left
+            { row: 1, col: 1 },   // down-right
+        ];
+        for (const dir of diagonalDirections) {
+            let r = target.row + dir.row;
+            let c = target.col + dir.col;
+            while (ChessBoard.isInsideBoard(r, c)) {
+                const piece = this.getPieceAt({ row: r, col: c });
+                if (piece) {
+                    if ((piece.type === "bishop" || piece.type === "queen") && piece.color === byColor) {
+                        return true;
                     }
-
-                    continue;
+                    break;
                 }
-
-                const attacks = piece.getValidMoves({ row, col }, this.board);
-                const isAttackingTarget = attacks.some(
-                    (move) => move.row === target.row && move.col === target.col
-                );
-
-                if (isAttackingTarget) {
-                    return true;
-                }
+                r += dir.row;
+                c += dir.col;
             }
         }
 
@@ -496,7 +541,7 @@ export class ChessBoard {
                     continue;
                 }
 
-                const moves = this.getLegalMoves({ row, col});
+                const moves = this.getLegalMoves({ row, col });
                 if (moves.length > 0) {
                     return true;
                 }
@@ -560,7 +605,7 @@ export class ChessBoard {
             const bishop2SquareColor = (bishop2.row + bishop2.col) % 2;
 
             return bishop1SquareColor === bishop2SquareColor;
-        }   
+        }
 
         return false;
     }
@@ -573,19 +618,19 @@ export class ChessBoard {
         if (this.isCheckmate("white"))
             return "black_wins";
 
-        if (this.isCheckmate("black")) 
+        if (this.isCheckmate("black"))
             return "white_wins";
 
-        if (this.isStalemate("white") || this.isStalemate("black")) 
+        if (this.isStalemate("white") || this.isStalemate("black"))
             return "stalemate";
 
-        if (this.isInsufficientMaterial()) 
+        if (this.isInsufficientMaterial())
             return "draw_insufficient_material";
-    
-        if (this.isFiftyMoveRule()) 
+
+        if (this.isFiftyMoveRule())
             return "draw_fifty_move_rule";
 
-        if (this.isKingInCheck(this.currentTurn)) 
+        if (this.isKingInCheck(this.currentTurn))
             return "check";
 
         return "playing";
@@ -625,7 +670,7 @@ export class ChessBoard {
             white: { ...snapshot.kingPositions.white },
             black: { ...snapshot.kingPositions.black },
         };
-        
+
         this.currentTurn = snapshot.currentTurn;
         this.halfMoveClock = snapshot.halfMoveClock;
         this.enPassantTarget = snapshot.enPassantTarget
@@ -669,7 +714,4 @@ export class ChessBoard {
     public static isInsideBoard(row: number, col: number): boolean {
         return row >= 0 && col >= 0 && row < 8 && col < 8;
     }
-
-    
 }
-

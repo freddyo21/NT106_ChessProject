@@ -3,18 +3,18 @@ import { Position } from "../types/Position";
 import { ChessBoard } from "./ChessBoard";
 import { Piece } from "./Piece";
 
-export class King extends Piece {
-    readonly type = "king";
+export class Knight extends Piece {
+    readonly type = "knight";
 
     readonly movementVectors = [
-        { row: 1, col: 0 },     // down
-        { row: -1, col: 0 },    // up
-        { row: 0, col: -1 },    // left
-        { row: 0, col: 1 },     // right
-        { row: 1, col: -1 },    // up-left
-        { row: 1, col: 1 },     // up-right
-        { row: -1, col: -1 },   // down-left
-        { row: -1, col: 1 },    // down-right
+        { row: 2, col: 1 },     // up-right
+        { row: 2, col: -1 },    // up-left
+        { row: -2, col: 1 },    // down-right
+        { row: -2, col: -1 },   // down-left
+        { row: 1, col: 2 },     // right-up
+        { row: 1, col: -2 },    // left-up
+        { row: -1, col: 2 },    // right-down
+        { row: -1, col: -2 },   // left-down
     ];
 
     constructor(color: Color) {
@@ -24,10 +24,9 @@ export class King extends Piece {
     getValidMoves(currentPos: Position, board: (Piece | null)[][]): Position[] {
         const moves: Position[] = [];
 
-        // Implementation for valid moves for King
-        for (const dir of this.movementVectors) {
-            const newRow = currentPos.row + dir.row;
-            const newCol = currentPos.col + dir.col;
+        for (const move of this.movementVectors) {
+            const newRow = currentPos.row + move.row;
+            const newCol = currentPos.col + move.col;
 
             // Check if the new position is within the board boundaries
             if (ChessBoard.isInsideBoard(newRow, newCol)) {
@@ -41,4 +40,5 @@ export class King extends Piece {
 
         return moves;
     }
+
 }

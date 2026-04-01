@@ -1,5 +1,4 @@
-import jwt, { JsonWebTokenError } from 'jsonwebtoken';
-import { Request, Response, NextFunction } from 'express';
+import jwt from 'jsonwebtoken';
 import { JwtInvalidException } from '../exceptions/JwtInvalidException';
 import { Logger } from '../utils/Logger';
 import { User } from '../entities/classes/User';
@@ -7,10 +6,11 @@ import { User } from '../entities/classes/User';
 const logger = new Logger("jwt");
 
 const getSecretKey = (): string => {
-    const key = process.env.JWT_SECRET_KEY;
+    const key = process.env.JWT_SECRET_KEY; // Do not provide a default value for the secret key, as it is critical for security.
+    const hasKey = key && key.trim().length > 0; // Check if the key exists and is not just whitespace.
 
-    if (!key) {
-        throw new Error("JWT_SECRET_KEY is missing or empty in environment configuration.")
+    if (!hasKey) {
+        throw new Error("Secret key is missing or empty in environment configuration.")
     }
 
     return key;
@@ -18,7 +18,6 @@ const getSecretKey = (): string => {
 
 export const generateToken = (user: User, expireTime: number = 3600) => {
     const issuedAt = Number(new Date());
-    const expirationTime = issuedAt + expireTime * 1000; // jwt valid for 1 hour from the issued time
 
     const payload = {
         iss: process.env.JWT_ISSUER,    // Issuer of the token
@@ -31,8 +30,8 @@ export const generateToken = (user: User, expireTime: number = 3600) => {
         payload,
         getSecretKey(),
         {
-            algorithm: "ES256",
-            expiresIn: "1h"
+            algorithm: "HS512" as const,
+            expiresIn: expireTime
         }
     );
 }
@@ -42,7 +41,7 @@ export const validateToken = (token: string) => {
         const secret = getSecretKey();
 
         const decoded = jwt.verify(token, secret, {
-            algorithms: ["ES256", "ES384", "ES512"],
+            algorithms: ["HS256", "HS384", "HS512"],
             clockTolerance: 30
         })
 
@@ -58,14 +57,14 @@ export const validateToken = (token: string) => {
         logger.fileType = "jwt";
 
         if (ex instanceof jwt.TokenExpiredError) {
-            console.error(`Expired JWT token`);
-            logger.error(`Expired JWT token`);
+            console.error(`Token has expired`);
+            logger.error(`Token has expired`);
         } else if (ex instanceof jwt.JsonWebTokenError) {
-            console.error(`Invalid JWT token`);
-            logger.error(`Invalid JWT token`);
+            console.error(`Invalid token`);
+            logger.error(`Invalid token`);
         } else if (ex instanceof jwt.NotBeforeError) {
-            console.error(`JWT not active`);
-            logger.error(`JWT not active`);
+            console.error(`Token has not become active yet`);
+            logger.error(`Token has not become active yet`);
         } else {
             console.error(`JWT error`);
             logger.error(`JWT error: ${ex}`);
@@ -73,6 +72,6 @@ export const validateToken = (token: string) => {
 
         // Convert all JWT-related errors to JwtInvalidException
         // This error will be caught by the Global Error Handler and returned as 401
-        throw new JwtInvalidException("Token validation failed: ");
+        throw new JwtInvalidException("Token validation failed.");
     }
 }

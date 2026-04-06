@@ -1,5 +1,5 @@
-import { Color } from "../types/Color";
-import { Position } from "../types/Position";
+import { Color } from "./types/Color";
+import { Position } from "./types/Position";
 import { ChessBoard } from "./ChessBoard";
 import { Piece } from "./Piece";
 

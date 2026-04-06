@@ -1,5 +1,5 @@
-import { Color } from "../types/Color";
-import { Position } from "../types/Position";
+import { Color } from "./types/Color";
+import { Position } from "./types/Position";
 
 export abstract class Piece {
     abstract readonly type: "pawn" | "rook" | "knight" | "bishop" | "queen" | "king";

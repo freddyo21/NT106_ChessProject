@@ -1,4 +1,4 @@
-import { Piece } from "../classes/Piece";
+import { Piece } from "../Piece";
 import { Color } from "./Color";
 import { Position } from "./Position";
 

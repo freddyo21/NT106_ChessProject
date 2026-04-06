@@ -1,16 +1,16 @@
-import { Color } from "../types/Color";
-import { Position } from "../types/Position";
+import { Color } from "./types/Color";
+import { Position } from "./types/Position";
 import { ChessBoard } from "./ChessBoard";
 import { Piece } from "./Piece";
 
-export class Bishop extends Piece {
-    readonly type = "bishop";
+export class Rook extends Piece {
+    readonly type = "rook";
 
     readonly movementVectors: Position[] = [
-        { row: 1, col: 1 },   // Up-right
-        { row: 1, col: -1 },  // Up-left
-        { row: -1, col: 1 },    // Down-right
-        { row: -1, col: -1 },   // Down-left
+        { row: 1, col: 0 },     // Up
+        { row: -1, col: 0 },    // Down
+        { row: 0, col: -1 },    // Left
+        { row: 0, col: 1 },     // Right
     ] as const;
 
     constructor(color: Color) {

@@ -1,5 +1,5 @@
-import { Color } from "../types/Color";
-import { Position } from "../types/Position";
+import { Color } from "./types/Color";
+import { Position } from "./types/Position";
 import { King } from "./King";
 import { Piece } from "./Piece";
 import { Pawn } from "./Pawn";
@@ -7,7 +7,7 @@ import { Rook } from "./Rook";
 import { Knight } from "./Knight";
 import { Bishop } from "./Bishop";
 import { Queen } from "./Queen";
-import { BoardSnapshot, PieceSnapshot } from "../types/Snapshots";
+import { BoardSnapshot, PieceSnapshot } from "./types/Snapshots";
 
 export class ChessBoard {
     private board: (Piece | null)[][];

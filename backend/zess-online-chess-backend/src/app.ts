@@ -99,7 +99,7 @@ app.use(notFoundHandler);
 // Global error handler
 app.use(errorHandler);
 
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 3000;
 
 httpServer.listen(PORT, () => {
     console.log("Hệ thống Zess Chess đang chạy tại: " + PORT);

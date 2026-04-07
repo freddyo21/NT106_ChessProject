@@ -1,47 +1,20 @@
 import { useState } from "react";
 import "./App.css";
-import LoginUI from "./LoginUI";
-import ChessBoard from "./ChessBoard";
+import LoginUI from "./LoginUI/LoginUI";
+import ChessBoard from "./ChessBoard/ChessBoard";
 
 function App() {
-  const [screen, setScreen] = useState("board");
+  const [screen, setScreen] = useState("login");
 
   return (
     <div>
       {screen === "login" ? (
-        <>
-          <LoginUI />
-          <button onClick={() => setScreen("board")}>Sang bàn cờ</button>
-        </>
+        <LoginUI onLoginSuccess={() => setScreen("board")} />
       ) : (
-        <>
-          <ChessBoard />
-          <button onClick={() => setScreen("login")}>Quay lại đăng nhập</button>
-        </>
+        <ChessBoard />
       )}
     </div>
   );
 }
 
 export default App;
-
-/*
-import "./App.css";
-import ChessBoard from "./ChessBoard";
-
-function App() {
-  return <ChessBoard />;
-}
-
-export default App;
-*/
-/*
-import "./App.css";
-import ChessBoard from "./LoginUI";
-
-function App() {
-  return <LoginUI />;
-}
-
-export default App;
-*/

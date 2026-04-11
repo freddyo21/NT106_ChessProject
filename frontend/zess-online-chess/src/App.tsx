@@ -8,7 +8,7 @@ import RoomPage from "./RoomSystemUI/RoomPage";
 type Screen = "login" | "lobby" | "room" | "board";
 
 function App() {
-  const [screen, setScreen] = useState<Screen>("login");
+  const [screen, setScreen] = useState<Screen>("board");
 
   return (
     <div className="app-shell">

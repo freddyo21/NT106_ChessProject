@@ -8,6 +8,7 @@ import { router } from "./routes/router";
 import { globalLimiter } from "./middlewares/rate-limiter";
 import { createServer } from "node:http";
 import { socketInitialize } from "./websocket/websocket";
+import { pool } from "./config/db";
 
 const app = express();
 
@@ -18,7 +19,7 @@ app.set("trust proxy", 1);
 
 /**
  * ---------------------------------------------------------
- * 1. CORS & PARSER
+ * 1. CORS & PARSER=
  * ---------------------------------------------------------
  */
 const allowedOrigins = (process.env.FRONTEND_CORS_ALLOWED || "")
@@ -51,7 +52,6 @@ const corsOptions: cors.CorsOptions = {
 app.options(/(.*)/, cors(corsOptions));
 
 app.use(cors(corsOptions));
-
 app.use(express.json({ limit: "50kb" }));
 app.use(express.urlencoded({ extended: true }));
 
@@ -73,7 +73,19 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 
 // Remove this logic for production
 app.get("/", async (req: Request, res: Response) => {
-    res.send("Hello World! This is a TypeScript Express Server!");
+    try {
+        const result = await pool.query("select now()");
+        res.status(200).json({
+            message: "Hello World! This is a TypeScript Express Server!",
+            database: "connected",
+            time: result.rows[0],
+        });
+    } catch (error) {
+        console.error("Database connection failed:", error);
+        res.status(500).json({
+            message: "Server is running but database connection failed",
+        });
+    }
 });
 
 /**
@@ -84,6 +96,7 @@ app.get("/", async (req: Request, res: Response) => {
 
 app.use(
     "/api",
+    globalLimiter,
     router
 );
 

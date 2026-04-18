@@ -1,6 +1,5 @@
-import { IUser, UserSchema } from "@zess-online-chess/shared";
+import { IUser, User, UserSchema } from "@zess-online-chess/shared";
 import { pool } from "../config/database.config";
-import { User } from "../types/IUserResponse";
 import { Exception } from "../exceptions";
 
 const USER_SELECT_COLUMNS = `

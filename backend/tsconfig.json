@@ -6,8 +6,8 @@
     "outDir": "./dist",
     // Environment Settings
     // See also https://aka.ms/tsconfig/module
-    "target": "ES2020",
-    "module": "CommonJS",
+    "target": "ESNext",
+    "module": "ESNext",
     // For nodejs:
     // "lib": ["esnext"],
     "types": [
@@ -18,7 +18,7 @@
     "sourceMap": true,
     "declaration": true,
     "declarationMap": true,
-    "moduleResolution": "node",
+    "moduleResolution": "bundler",
     // Stricter Typechecking Options
     "noUncheckedIndexedAccess": true,
     "exactOptionalPropertyTypes": true,

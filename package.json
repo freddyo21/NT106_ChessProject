@@ -1,0 +1,35 @@
+{
+  "name": "zess-online-chess",
+  "version": "1.0.5",
+  "private": true,
+  "workspaces": [
+    "backend",
+    "frontend",
+    "shared"
+  ],
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "build:shared": "npm --workspace=shared run build",
+    "build:backend": "npm --workspace=backend run build",
+    "build:frontend": "npm --workspace=frontend run build",
+    "build": "npm run build:shared && concurrently --names backend,frontend --prefix \"[{name}]\" \"npm run build:backend\" \"npm run build:frontend\"",
+    "dev:shared": "npm --workspace=shared run dev",
+    "dev:backend": "npm --workspace=backend run dev",
+    "dev:frontend": "npm --workspace=frontend run tauri dev",
+    "dev": "npm run build:shared && concurrently --names backend,frontend,shared --prefix \"[{name}]\" \"npm run dev:shared\" \"npm run dev:backend\" \"npm run tauri dev:frontend\"",
+    "start:backend": "npm --workspace=backend start",
+    "start:frontend": "npm --workspace=frontend run preview -- --host 0.0.0.0 --port 5173",
+    "start": "npm run build:shared && concurrently --names backend,frontend --prefix \"[{name}]\" \"npm run start:backend\" \"npm run start:frontend\"",
+    "lint": "npm --workspaces run lint",
+    "test": "npm --workspace=backend run test"
+  },
+  "dependencies": {
+    "concurrently": "^9.2.1",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "rimraf": "^6.1.3"
+  }
+}

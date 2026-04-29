@@ -1,0 +1,55 @@
+name: CI Check
+on:
+  push:
+    branches: ["main", "develop"]
+  pull_request:
+    branches: ["main", "develop"]
+jobs:
+  backend-check:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: zess-online-chess-backend
+    steps:
+      - name: Checkout mã nguồn
+        uses: actions/checkout@v4
+
+      - name: Thiết lập Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "lts/*"
+          cache: "npm"
+          cache-dependency-path: zess-online-chess-backend/package-lock.json
+
+      - name: Cài đặt dependencies
+        run: npm ci
+
+      - name: Kiểm tra Lint
+        run: npm run lint --if-present
+
+      - name: Chạy Unit Test
+        run: npm test --if-present
+  frontend-check:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: zess-online-chess
+    steps:
+      - name: Checkout mã nguồn
+        uses: actions/checkout@v4
+
+      - name: Thiết lập Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "lts/*"
+          cache: "npm"
+          cache-dependency-path: zess-online-chess/package-lock.json
+
+      - name: Cài đặt dependencies
+        run: npm ci
+
+      - name: Kiểm tra Lint
+        run: npm run lint --if-present
+
+      - name: Chạy Unit Test
+        run: npm test --if-present

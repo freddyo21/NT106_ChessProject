@@ -29,7 +29,12 @@ async function initializeApp() {
         httpServer!.listen(PORT, () => {
             console.log(`Zess Chess System is running on port ${PORT}`);
             resolve();
-        }).on("error", (err) => {
+        }).on("error", (err: any) => {
+            if (err.code === "EADDRINUSE") {
+                console.error(`[FATAL] Port ${PORT} is already in use!`);
+                console.error("Run 'taskkill /F /IM node.exe /T' to free up the port.");
+                process.exit(1);
+            }
             console.error("Failed to start server:", err);
             reject(err);
         });
@@ -74,11 +79,11 @@ function setupGracefulShutdown() {
             httpServer.once("close", () => {
                 clearTimeout(shutdownTimeout);
                 console.log("✅ All connections closed, shutting down gracefully");
-                
+
                 // TODO: Add your cleanup here
                 // await database.disconnect();
                 // await redis.disconnect();
-                
+
                 process.exit(0);
             });
 

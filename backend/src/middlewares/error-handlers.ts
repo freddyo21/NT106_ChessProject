@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from "express";
 import { Exception, NotFoundException } from "../exceptions";
 import { Logger } from "../utils/Logger";
 import { IErrorResponse } from "@zess-online-chess/shared";
+import { flattenError, ZodError } from "zod";
 
 const systemLogger = new Logger("system");
 const authLogger = new Logger("auth");
@@ -16,7 +17,7 @@ export function errorHandler(
     next: NextFunction
 ) {
     // Default to 500 if no status code
-    const statusCode = err.statusCode || 500;
+    let statusCode = err.statusCode || 500;
     const isOperational = err.isOperational || false;
     const isProduction = process.env.NODE_ENV === "production";
 
@@ -31,7 +32,7 @@ export function errorHandler(
         // Lỗi an ninh (Unauthorized/Forbidden) -> Log để theo dõi dấu hiệu tấn công
         authLogger.error(`[AUTH_ALERT] ${req.ip} tried to access ${req.originalUrl}`, {
             reason: err.message,
-            user: req.body?.username || "anonymous" // Cần sanitize các "\n", "\r", ... nếu log ra username để tránh log injection
+            user: req.body?.email || "anonymous" // Cần sanitize các "\n", "\r", ... nếu log ra username để tránh log injection
         });
     } else {
         systemLogger.debug(`[CLIENT_ERR] ${statusCode} - ${err.message}`);
@@ -49,6 +50,22 @@ export function errorHandler(
                 message: "Internal server error",
                 path: req.path,
                 timestamp: new Date().toISOString()
+            }
+        };
+    } else if (err instanceof ZodError) {
+        statusCode = 400;
+        response = {
+            status: "fail",
+            error: {
+                name: "ValidationError",
+                message: "Invalid request data",
+                details: {
+                    issues: err.issues,
+                    flattenError: flattenError(err),
+                },
+                path: req.path,
+                timestamp: new Date().toISOString(),
+                stack: !isProduction ? err.stack : undefined // Show stack in development for validation errors
             }
         };
     } else {

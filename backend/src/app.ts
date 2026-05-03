@@ -51,52 +51,52 @@ initializeApp().catch(err => {
  * GRACEFUL SHUTDOWN HANDLER
  * ═══════════════════════════════════════════════════════════
  */
-function setupGracefulShutdown() {
-    const signals = ["SIGTERM", "SIGINT"];
+    function setupGracefulShutdown() {
+        const signals = ["SIGTERM", "SIGINT"];
 
-    signals.forEach(signal => {
-        process.on(signal, async () => {
-            console.log(`\n📛 Received ${signal}, starting graceful shutdown...`);
+        signals.forEach(signal => {
+            process.on(signal, async () => {
+                console.log(`\nReceived ${signal}, starting graceful shutdown...`);
 
-            if (!httpServer) {
-                console.log("Server not initialized, exiting immediately");
-                process.exit(0);
-            }
-
-            // 1. Stop accepting new connections
-            httpServer.close(() => {
-                console.log("✅ HTTP server closed, no new connections accepted");
-            });
-
-            // 2. Graceful disconnect timeout (30 seconds)
-            const shutdownTimeout = setTimeout(() => {
-                console.error("❌ Graceful shutdown timeout exceeded, forcing exit...");
-                process.exit(1);
-            }, 30000);
-
-            // 3. Wait for all connections to close
-            // Socket.io will handle its own connection cleanup
-            httpServer.once("close", () => {
-                clearTimeout(shutdownTimeout);
-                console.log("✅ All connections closed, shutting down gracefully");
-
-                // TODO: Add your cleanup here
-                // await database.disconnect();
-                // await redis.disconnect();
-
-                process.exit(0);
-            });
-
-            // 4. Force close connections that don't close in time
-            setTimeout(() => {
-                if (httpServer && httpServer.listening) {
-                    console.warn("⚠️  Some connections still open, destroying them...");
-                    httpServer.closeAllConnections?.();
+                if (!httpServer) {
+                    console.log("Server not initialized, exiting immediately");
+                    process.exit(0);
                 }
-            }, 25000);
+
+                // Stop accepting new connections
+                httpServer.close(() => {
+                    console.log("HTTP server closed, no new connections accepted");
+                });
+
+                // Graceful disconnect timeout (30 seconds)
+                const shutdownTimeout = setTimeout(() => {
+                    console.error("Graceful shutdown timeout exceeded, forcing exit...");
+                    process.exit(1);
+                }, 30000);
+
+                // Wait for all connections to close
+                // Socket.io will handle its own connection cleanup
+                httpServer.once("close", () => {
+                    clearTimeout(shutdownTimeout);
+                    console.log("All connections closed, shutting down gracefully");
+
+                    // TODO: Add your cleanup here
+                    // await database.disconnect();
+                    // await redis.disconnect();
+
+                    process.exit(0);
+                });
+
+                // Force close connections that don't close in time
+                setTimeout(() => {
+                    if (httpServer && httpServer.listening) {
+                        console.warn("Some connections still open, destroying them...");
+                        httpServer.closeAllConnections?.();
+                    }
+                }, 25000);
+            });
         });
-    });
-}
+    }
 
 setupGracefulShutdown();
 

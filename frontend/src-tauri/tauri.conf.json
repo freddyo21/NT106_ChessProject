@@ -9,6 +9,13 @@
     "beforeBuildCommand": "npm run build",
     "frontendDist": "../dist"
   },
+  "plugins": {
+    "deep-link": {
+      "desktop": {
+        "schemes": ["nt106", "com.admin.zess-online-chess"]
+      }
+    }
+  },
   "app": {
     "windows": [
       {

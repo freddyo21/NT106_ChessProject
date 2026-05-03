@@ -1,12 +1,12 @@
 export enum ERoles {
     ADMIN = "admin",
-    PLAYER = "player",
+    USER = "user",
     GUEST = "guest"
 }
 
 export const roleLabels: Record<ERoles, string> = {
     [ERoles.ADMIN]: "Admin",
-    [ERoles.PLAYER]: "Player",
+    [ERoles.USER]: "User",
     [ERoles.GUEST]: "Guest",
 };
 

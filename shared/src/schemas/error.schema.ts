@@ -1,5 +1,4 @@
 import { z } from "zod";
-import { snakeToCamelTransform } from "../utils";
 
 export const ErrorResponseSchema = z.object({
     status: z.string().min(1),
@@ -9,9 +8,17 @@ export const ErrorResponseSchema = z.object({
         stack: z.string().optional(),
         details: z.record(
             z.string(),
-            z.union([z.string(), z.number(), z.boolean(), z.null(), z.array(z.string())])
+            z.union([
+                z.string(),
+                z.record(z.string(), z.any()),
+                z.number(),
+                z.boolean(),
+                z.null(),
+                z.array(z.string()),
+                z.unknown()
+            ])
         ).optional(),
         path: z.string().min(1),
         timestamp: z.iso.datetime(),
     }),
-}).transform(snakeToCamelTransform);
+});

@@ -1,10 +1,9 @@
 import { z } from "zod";
-import { UserAuthSchema } from "./";
-import { snakeToCamelTransform } from "../utils";
+import { UserResponseSchema } from "./";
 
 const AuthBaseResponseSchema = z.object({
     message: z.string(),
-    user: UserAuthSchema
+    user: UserResponseSchema.partial() // Cho phép user có thể trả về null hoặc undefined nếu chưa xác thực email
 });
 
 export const LoginRequestSchema = z.object({
@@ -17,24 +16,24 @@ export const LoginRequestSchema = z.object({
     password: z
         .string()
         .min(8, { message: "Password must be at least 8 characters long" })
-        .regex(/[a-z]/, { message: "Requires at least 1 lowercase letter" })
-        .regex(/[A-Z]/, { message: "Requires at least 1 uppercase letter" })
-        .regex(/[0-9]/, { message: "Requires at least 1 number" })
-        .regex(/[^a-zA-Z0-9]/, { message: "Requires at least 1 special character" })
+        // .regex(/[a-z]/, { message: "Requires at least 1 lowercase letter" })
+        // .regex(/[A-Z]/, { message: "Requires at least 1 uppercase letter" })
+        // .regex(/[0-9]/, { message: "Requires at least 1 number" })
+        // .regex(/[^a-zA-Z0-9]/, { message: "Requires at least 1 special character" })
         .refine((val) => !val.includes("123456"), {
             message: "Password is too weak, don't use consecutive sequences!",
         }),
-    remember_me: z.boolean().default(false)
-}).strict().transform(snakeToCamelTransform);
+    rememberMe: z.boolean().default(false).optional()
+}).strict();
 
 export const LoginResponseSchema = AuthBaseResponseSchema.extend({
-    access_token: z.string(),
-    refresh_token: z.string(),
-    expires_in: z.number(),
-    user: UserAuthSchema.extend({
-        is_verified: z.literal(true)
+    accessToken: z.string(),
+    refreshToken: z.string(),
+    expiresIn: z.number(),
+    user: UserResponseSchema.extend({
+        isVerified: z.literal(true)
     })
-}).transform(snakeToCamelTransform);
+});
 
 export const RegisterRequestSchema = z.object({
     name: z
@@ -54,33 +53,31 @@ export const RegisterRequestSchema = z.object({
     password: z
         .string()
         .min(8, { message: "Password must be at least 8 characters long" })
-        .regex(/[a-z]/, { message: "Requires at least 1 lowercase letter" })
-        .regex(/[A-Z]/, { message: "Requires at least 1 uppercase letter" })
-        .regex(/[0-9]/, { message: "Requires at least 1 number" })
-        .regex(/[^a-zA-Z0-9]/, { message: "Requires at least 1 special character" })
+        // .regex(/[a-z]/, { message: "Requires at least 1 lowercase letter" })
+        // .regex(/[A-Z]/, { message: "Requires at least 1 uppercase letter" })
+        // .regex(/[0-9]/, { message: "Requires at least 1 number" })
+        // .regex(/[^a-zA-Z0-9]/, { message: "Requires at least 1 special character" })
         .refine((val) => !val.includes("123456"), {
             message: "Password is too weak, don't use consecutive sequences!",
         }),
-    confirm_password: z
+    confirmPassword: z
         .string()
         .min(1, { message: "Confirm password cannot be empty" })
 }).strict()
-    .refine((data) => data.password === data.confirm_password, {
+    .refine((data) => data.password === data.confirmPassword, {
         message: "Passwords don't match",
-        path: ["confirm_password"],
-    })
-    .transform(snakeToCamelTransform);
+        path: ["confirmPassword"],
+    });
 
 export const RegisterResponseSchema = AuthBaseResponseSchema.extend({ // Phải xác thực email trước khi đăng nhập
-    user: UserAuthSchema.extend({
-        is_verified: z.literal(false)
+    user: UserResponseSchema.extend({
+        isVerified: z.literal(false)
     })
-}).transform(snakeToCamelTransform);
+});
 
 export const TokenResponseSchema = z.object({
     accessToken: z.string(),
     tokenType: z.literal("Bearer"),
     expiresIn: z.number(),
-    user: UserAuthSchema.strict()
-})
-    .transform(snakeToCamelTransform);
+    user: UserResponseSchema.strict()
+});

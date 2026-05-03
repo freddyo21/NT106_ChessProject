@@ -2,11 +2,10 @@ import { NextFunction, Request, Response } from "express";
 import * as authService from "../services/auth.service";
 import { validateLoginRequest } from "../schemas/auth/LoginRequestDTO";
 import { validateRegisterRequest } from "../schemas/auth/RegisterRequestDTO";
-import { LoginResponseDTO } from "@zess-online-chess/shared";
+import { LoginResponseDTO, UserResponseSchema } from "@zess-online-chess/shared";
 import { ForbiddenException, InvalidCredentialException } from "../exceptions";
 
-const EXPIRY_SHORT = 3600;
-const EXPIRY_LONG = 2592000; // 30 Ngày (3600 * 24 * 30)
+const ACCESS_TOKEN_EXPIRY = 15 * 60; // 15 minutes
 
 export const login = async (req: Request, res: Response<LoginResponseDTO>, next: NextFunction) => {
     try {
@@ -14,7 +13,7 @@ export const login = async (req: Request, res: Response<LoginResponseDTO>, next:
 
         const cleanData = validateLoginRequest(loginData);
 
-        const { user, token } = await authService.login(cleanData);
+        const { user, accessToken, refreshToken } = await authService.login(cleanData);
 
         if (!user) {
             throw new InvalidCredentialException("Invalid email or password.");
@@ -26,10 +25,32 @@ export const login = async (req: Request, res: Response<LoginResponseDTO>, next:
 
         return res.status(200).json({
             message: "Logged in successfully.",
-            accessToken: token,
-            refreshToken: "", // Add refresh token from authService if available
-            expiresIn: cleanData.rememberMe ? EXPIRY_LONG : EXPIRY_SHORT,
-            user: { ...user, isVerified: true }
+            accessToken,
+            refreshToken,
+            expiresIn: ACCESS_TOKEN_EXPIRY,
+            user: { ...UserResponseSchema.parse(user), isVerified: true }
+        });
+    } catch (err) {
+        next(err);
+    }
+};
+
+export const refresh = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const { refreshToken } = req.body;
+
+        if (!refreshToken || typeof refreshToken !== "string") {
+            throw new InvalidCredentialException("Missing or invalid refresh token");
+        }
+
+        const { user, accessToken, refreshToken: newRefreshToken } = await authService.refreshTokens(refreshToken);
+
+        return res.status(200).json({
+            message: "Tokens refreshed successfully.",
+            accessToken,
+            refreshToken: newRefreshToken,
+            expiresIn: ACCESS_TOKEN_EXPIRY,
+            user: UserResponseSchema.parse(user)
         });
     } catch (err) {
         next(err);
@@ -45,17 +66,24 @@ export const register = async (req: Request, res: Response, next: NextFunction) 
         const { user } = await authService.register(cleanData);
 
         return res.status(201).json({
-            status: "success",
             message: "Registered successfully.",
-            data: {
-                user
-            }
+            user: UserResponseSchema.parse(user)
         });
     } catch (error) {
         next(error);
     }
 };
 
-export const logout = async (req: Request, res: Response) => {
-    return res.sendStatus(204);
+export const logout = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const { refreshToken } = req.body;
+
+        if (refreshToken) {
+            await authService.logout(refreshToken);
+        }
+
+        return res.status(200).json({ message: "Logged out successfully." });
+    } catch (err) {
+        next(err);
+    }
 };

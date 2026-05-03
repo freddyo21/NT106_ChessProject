@@ -1,4 +1,4 @@
-import { NextFunction, Request } from "express";
+import { NextFunction, Request, Response } from "express";
 import { validateToken } from "../utils/jwt-handler";
 import { JwtPayload } from "jsonwebtoken";
 import { JwtInvalidException } from "../exceptions";
@@ -8,7 +8,7 @@ type JwtRequest = Request & {
     user?: string | JwtPayload;
 };
 
-export const authMiddleware = (req: JwtRequest, next: NextFunction) => {
+export const authMiddleware = (req: JwtRequest, res: Response, next: NextFunction) => {
     const token = getBearerToken(req);
 
     if (!token) {
@@ -19,6 +19,7 @@ export const authMiddleware = (req: JwtRequest, next: NextFunction) => {
         const payload = validateToken(token);
         req.user = payload;
     } catch (error) {
+        res.status(401).json({ error: "Invalid or expired token" });
         return next(error);
     }
 

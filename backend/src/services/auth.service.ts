@@ -113,3 +113,125 @@ export const logout = async (refreshToken: string) => {
 
     // Khi logout, cần đẩy refreshToken và accessToken vào Redis để blacklist cho tới khi hết hạn
 };
+
+// Store for password reset tokens (should use Redis in production)
+const resetTokenStore = new Map<string, { userId: string; expiresAt: number }>();
+
+const RESET_TOKEN_EXPIRY = "15m"; // 15 minutes
+
+const generateResetToken = (): string => {
+    const randomBytes = crypto.getRandomValues(new Uint8Array(32));
+    return Array.from(randomBytes)
+        .map((byte) => byte.toString(16).padStart(2, "0"))
+        .join("");
+};
+
+const cleanupExpiredResetTokens = () => {
+    const now = Date.now();
+    for (const [token, record] of resetTokenStore.entries()) {
+        if (record.expiresAt <= now) {
+            resetTokenStore.delete(token);
+        }
+    }
+};
+
+export const forgotPassword = async (email: string) => {
+    cleanupExpiredResetTokens();
+    const normalizedEmail = email.trim().toLowerCase();
+    const user = await userRepository.findByEmail(normalizedEmail);
+
+    if (user) {
+        const resetToken = generateResetToken();
+        const expiresAtMs = Date.now() + 15 * 60 * 1000; // 15 minutes
+
+        resetTokenStore.set(resetToken, {
+            userId: user.id,
+            expiresAt: expiresAtMs,
+        });
+
+        // TODO: Send reset token via email
+        // Example: await mailerService.sendPasswordResetEmail(user.email, resetToken);
+        console.log(`Reset token for ${email}: ${resetToken}`);
+    }
+
+    // Return generic message to avoid email enumeration
+    return { message: "If an account with that email exists, a password reset link has been sent." };
+};
+
+// export const resetPassword = async (
+//     token: string,
+//     newPassword: string,
+//     confirmPassword: string
+// ) => {
+//     if (newPassword !== confirmPassword) {
+//         throw new InvalidCredentialException("Passwords do not match");
+//     }
+
+//     if (!newPassword || newPassword.length < 8) {
+//         throw new InvalidCredentialException("Password must be at least 8 characters long");
+//     }
+
+//     cleanupExpiredResetTokens();
+
+//     const resetRecord = resetTokenStore.get(token);
+//     if (!resetRecord) {
+//         throw new InvalidCredentialException("Invalid or expired reset token");
+//     }
+
+//     if (resetRecord.expiresAt <= Date.now()) {
+//         resetTokenStore.delete(token);
+//         throw new InvalidCredentialException("Reset token has expired");
+//     }
+
+//     const user = await userRepository.findById(resetRecord.userId);
+//     if (!user) {
+//         throw new InvalidCredentialException("User not found");
+//     }
+
+//     const hashedPassword = await hashPassword(newPassword, SALT_ROUNDS);
+//     await userRepository.update(user.id, { passwordHash: hashedPassword });
+
+//     // Invalidate all refresh tokens to force re-login
+//     // TODO: Implement refresh token revocation for this user
+
+//     resetTokenStore.delete(token);
+
+//     return { message: "Password reset successfully. Please log in with your new password." };
+// };
+
+export const changePassword = async (
+    userId: string,
+    currentPassword: string,
+    newPassword: string,
+    confirmPassword: string
+) => {
+    if (newPassword !== confirmPassword) {
+        throw new InvalidCredentialException("New passwords do not match");
+    }
+
+    if (!newPassword || newPassword.length < 8) {
+        throw new InvalidCredentialException("New password must be at least 8 characters long");
+    }
+
+    if (currentPassword === newPassword) {
+        throw new InvalidCredentialException("New password must be different from current password");
+    }
+
+    const user = await userRepository.findById(userId);
+    if (!user) {
+        throw new InvalidCredentialException("User not found");
+    }
+
+    const isMatch = await comparePassword(currentPassword, user.passwordHash);
+    if (!isMatch) {
+        throw new InvalidCredentialException("Current password is incorrect");
+    }
+
+    const hashedPassword = await hashPassword(newPassword, SALT_ROUNDS);
+    await userRepository.update(user.id, { passwordHash: hashedPassword });
+
+    // Optionally invalidate all refresh tokens to force re-login on all devices
+    // TODO: Implement refresh token revocation for this user
+
+    return { message: "Password changed successfully." };
+};

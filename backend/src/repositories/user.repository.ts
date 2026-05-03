@@ -103,7 +103,7 @@ export const create = async (data: Required<CreateUserData>) => {
     throw new Exception("Failed to create user", 500, "InternalServerError");
 };
 
-export const update = async (id: number, data: Partial<User>) => {
+export const update = async (id: string, data: Partial<User>) => {
     const fields: string[] = [];
     const values: unknown[] = [];
     let placeholderIndex = 1;
@@ -134,7 +134,10 @@ export const update = async (id: number, data: Partial<User>) => {
         UPDATE users u
         SET ${fields.join(", ")}
         WHERE u.id = $${placeholderIndex}
-        RETURNING ${USER_SELECT_COLUMNS}, u."role_id" AS "roleId"
+        RETURNING ${USER_SELECT_COLUMNS}, r.name AS role
+        FROM users u
+        JOIN roles r ON u.role_id = r.id
+        WHERE u.id = $${placeholderIndex}
     `;
 
     const result = await pool.query<IUser>(query, values);

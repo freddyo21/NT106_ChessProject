@@ -87,3 +87,48 @@ export const logout = async (req: Request, res: Response, next: NextFunction) =>
         next(err);
     }
 };
+
+export const forgotPassword = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const { email } = req.body;
+
+        if (!email || typeof email !== "string") {
+            throw new InvalidCredentialException("Missing or invalid email");
+        }
+
+        const result = await authService.forgotPassword(email);
+
+        return res.status(200).json(result);
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const changePassword = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const { currentPassword, newPassword, confirmPassword } = req.body;
+        const userId = (req as any).user?.id; // Assuming JWT middleware attaches user to request
+
+        if (!userId) {
+            throw new InvalidCredentialException("User not authenticated");
+        }
+
+        if (!currentPassword || typeof currentPassword !== "string") {
+            throw new InvalidCredentialException("Missing or invalid current password");
+        }
+
+        if (!newPassword || typeof newPassword !== "string") {
+            throw new InvalidCredentialException("Missing or invalid new password");
+        }
+
+        if (!confirmPassword || typeof confirmPassword !== "string") {
+            throw new InvalidCredentialException("Missing or invalid confirm password");
+        }
+
+        const result = await authService.changePassword(userId, currentPassword, newPassword, confirmPassword);
+
+        return res.status(200).json(result);
+    } catch (error) {
+        next(error);
+    }
+};

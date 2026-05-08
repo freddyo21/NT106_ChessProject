@@ -1,4 +1,4 @@
-import z from "zod";
+import { z } from "zod";
 
 export const invitationParametersSchema = z.object({
     rid: z.uuidv7("Invalid room ID format")

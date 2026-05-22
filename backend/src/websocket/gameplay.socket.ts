@@ -1,8 +1,26 @@
 import { Socket } from "socket.io";
 import { Position } from "../types/Position";
 import { getGameRoom } from "./room-management.socket";
-import { AuthorizedRoomContext, GameActionCallback, GameRoom, GameStatePayload } from "../types/Gameplay";
+import { AuthorizedRoomContext, GameActionCallback, GameRoom, GameStatePayload, PromotionPiece } from "../types/Gameplay";
 import { InvalidMoveException } from "../exceptions";
+import { applyMatchEloResult } from "../services/elo.service";
+
+const PROMOTION_PIECES: PromotionPiece[] = ["queen", "rook", "bishop", "knight"];
+
+const getRatedResultFromGameStatus = (status: string): "white" | "black" | "draw" | null => {
+    // Chỉ các trạng thái kết thúc ván mới được dùng để cộng/trừ Elo.
+    if (status === "white_wins") return "white";
+    if (status === "black_wins") return "black";
+    if (
+        status === "stalemate" ||
+        status === "draw_insufficient_material" ||
+        status === "draw_fifty_move_rule"
+    ) {
+        return "draw";
+    }
+
+    return null;
+};
 
 export const gameplaySocket = (socket: Socket) => {
     const emitGameError = (callback: GameActionCallback | undefined, err: unknown) => {
@@ -12,6 +30,7 @@ export const gameplaySocket = (socket: Socket) => {
     };
 
     const getAuthorizedRoomContext = (roomId: string): AuthorizedRoomContext => {
+        // Mọi action gameplay phải đến từ socket đã join đúng room để tránh move chéo phòng.
         if (!roomId) throw new Error("Missing roomId");
         if (!socket.rooms.has(roomId)) throw new Error("You are not in this room");
 
@@ -25,6 +44,7 @@ export const gameplaySocket = (socket: Socket) => {
     };
 
     const buildGameStatePayload = (roomId: string, room: GameRoom): GameStatePayload => ({
+        // Payload này là nguồn đồng bộ board/turn/status cho cả hai client trong cùng phòng.
         roomId,
         currentTurn: room.game.getCurrentTurn(),
         board: room.game.getBoard(),
@@ -32,9 +52,45 @@ export const gameplaySocket = (socket: Socket) => {
             white: room.game.getKingPosition("white"),
             black: room.game.getKingPosition("black"),
         },
+        gameStatus: room.game.getGameStatus(),
     });
 
-    const runGameAction = <T extends object = {}>({
+    const applyRatedResultIfNeeded = async (room: GameRoom) => {
+        const result = getRatedResultFromGameStatus(room.game.getGameStatus());
+
+        // ratedResult đảm bảo một ván chỉ apply Elo đúng một lần, kể cả client emit lại sau khi kết thúc.
+        if (!result || room.ratedResult) {
+            return;
+        }
+
+        const whitePlayer = room.players.find((player) => player.color === "white");
+        const blackPlayer = room.players.find((player) => player.color === "black");
+
+        if (!whitePlayer || !blackPlayer) {
+            return;
+        }
+
+        const eloResult = await applyMatchEloResult({
+            whiteUserId: whitePlayer.userId,
+            blackUserId: blackPlayer.userId,
+            whiteElo: whitePlayer.elo,
+            blackElo: blackPlayer.elo,
+            result,
+        });
+
+        // Cập nhật Elo in-memory để room list/board sau đó thấy Elo mới ngay, không cần reconnect.
+        whitePlayer.elo = eloResult.whiteNextElo;
+        blackPlayer.elo = eloResult.blackNextElo;
+        room.ratedResult = {
+            result,
+            whiteDelta: eloResult.whiteDelta,
+            blackDelta: eloResult.blackDelta,
+            whiteNextElo: eloResult.whiteNextElo,
+            blackNextElo: eloResult.blackNextElo,
+        };
+    };
+
+    const runGameAction = async <T extends object = {}>({
         roomId,
         eventName,
         callback,
@@ -48,8 +104,12 @@ export const gameplaySocket = (socket: Socket) => {
         try {
             const context = getAuthorizedRoomContext(roomId);
             const extraPayload = action(context) ?? ({} as T);
+            // Sau mỗi action hợp lệ, kiểm tra xem nước đi đó có kết thúc ván và cần tính Elo không.
+            await applyRatedResultIfNeeded(context.room);
             const payload: GameStatePayload & T = {
                 ...buildGameStatePayload(roomId, context.room),
+                // eloUpdate chỉ xuất hiện khi ván đã chốt Elo, frontend dùng để cập nhật badge và thông báo.
+                eloUpdate: context.room.ratedResult,
                 ...extraPayload,
             };
 
@@ -60,8 +120,8 @@ export const gameplaySocket = (socket: Socket) => {
         }
     };
 
-    socket.on("chess_move", (data, callback: GameActionCallback<{ from: Position; to: Position }>) => {
-        const { roomId, from, to } = data ?? {};
+    socket.on("chess_move", (data, callback: GameActionCallback<{ from: Position; to: Position; promotionPiece?: PromotionPiece }>) => {
+        const { roomId, from, to, promotionPiece } = data ?? {};
 
         runGameAction({
             roomId,
@@ -78,10 +138,17 @@ export const gameplaySocket = (socket: Socket) => {
                     throw new InvalidMoveException("It is not your turn!");
                 }
 
-                const moved = room.game.movePiece(from, to);
+                if (
+                    promotionPiece !== undefined &&
+                    !PROMOTION_PIECES.includes(promotionPiece)
+                ) {
+                    throw new InvalidMoveException("Invalid promotion piece");
+                }
+
+                const moved = room.game.movePiece(from, to, promotionPiece);
                 if (!moved) throw new InvalidMoveException("Illegal move");
 
-                return { from, to };
+                return { from, to, promotionPiece };
             },
         });
     });

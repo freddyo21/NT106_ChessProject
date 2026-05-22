@@ -51,7 +51,9 @@ export const chatSocket = async (socket: Socket) => {
                 CHAT_MESSAGE | Room: ${roomId} | User: ${username} | Content: ${message}
             `);
 
-            socket.to(roomId).emit("receive_message", {
+            socket.nsp.to(roomId).emit("receive_message", {
+                id: `${Date.now()}-${socket.id}`,
+                userId: socket.data.user?.id,
                 username,
                 message,
                 timestamp: new Date().toISOString()

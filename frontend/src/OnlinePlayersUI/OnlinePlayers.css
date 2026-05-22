@@ -155,33 +155,32 @@
   text-overflow: ellipsis;
 }
 
-/* ── BUTTON ── */
-.op-btn {
+/* ── STATUS ── */
+.op-status-pill {
   flex-shrink: 0;
-  border: none;
-  border-radius: 8px;
+  border-radius: 999px;
   padding: 6px 10px;
   font-size: 12px;
   font-weight: 700;
-  cursor: pointer;
-  transition: 0.15s ease;
   white-space: nowrap;
 }
 
-.op-btn:not(:disabled) {
-  background: linear-gradient(135deg, #14b8a6, #0ea5e9);
-  color: #fff;
+.op-status-pill--online {
+  color: #86efac;
+  background: rgba(34, 197, 94, 0.12);
+  border: 1px solid rgba(34, 197, 94, 0.18);
 }
 
-.op-btn:not(:disabled):hover {
-  filter: brightness(1.08);
-  transform: translateY(-1px);
+.op-status-pill--playing {
+  color: #facc15;
+  background: rgba(234, 179, 8, 0.12);
+  border: 1px solid rgba(234, 179, 8, 0.18);
 }
 
-.op-btn:disabled {
-  background: rgba(255, 255, 255, 0.06);
-  color: #4a5a72;
-  cursor: not-allowed;
+.op-status-pill--idle {
+  color: #93c5fd;
+  background: rgba(96, 165, 250, 0.12);
+  border: 1px solid rgba(96, 165, 250, 0.18);
 }
 
 /* ── EMPTY ── */

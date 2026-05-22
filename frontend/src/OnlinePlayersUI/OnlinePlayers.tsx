@@ -1,4 +1,5 @@
-import "./OnlinePlayers.css";
+﻿import "./OnlinePlayers.css";
+import { getRankByElo, type EloRankDivision, type EloRankTier } from "@zess-online-chess/shared";
 import BronzeBadge from "../Image/PNG_BadgeRank/Bronze.svg";
 import GoldBadge from "../Image/PNG_BadgeRank/Gold.svg";
 import MasterBadge from "../Image/PNG_BadgeRank/Master.svg";
@@ -6,9 +7,9 @@ import SilverBadge from "../Image/PNG_BadgeRank/Siver.svg";
 
 export type OnlinePlayerStatus = "online" | "playing" | "idle";
 
-export type OnlinePlayerRankTier = "bronze" | "silver" | "gold" | "master";
+export type OnlinePlayerRankTier = EloRankTier;
 
-export type OnlinePlayerRankDivision = 1 | 2 | 3;
+export type OnlinePlayerRankDivision = EloRankDivision;
 
 export type OnlinePlayer = {
   id: string;
@@ -19,24 +20,17 @@ export type OnlinePlayer = {
   activityText?: string;
   avatarUrl?: string;
 
-  //{giải thích code} Giữ lại để sau này backend có thể trả rank nếu cần, nhưng hiện tại UI sẽ tự tính theo Elo.
+  //{giáº£i thĂ­ch code} Giá»¯ láº¡i Ä‘á»ƒ sau nĂ y backend cĂ³ thá»ƒ tráº£ rank náº¿u cáº§n, nhÆ°ng hiá»‡n táº¡i UI sáº½ tá»± tĂ­nh theo Elo.
   rankTier?: OnlinePlayerRankTier;
   rankText?: string;
 };
 
 type OnlinePlayersProps = {
   players: OnlinePlayer[];
-  onInvitePlayer?: (player: OnlinePlayer) => void;
-};
-
-type ResolvedPlayerRank = {
-  tier: OnlinePlayerRankTier;
-  division: OnlinePlayerRankDivision;
-  text: string;
 };
 
 function getAvatarText(displayName: string) {
-  //{giải thích code} Lấy 2 ký tự đầu làm avatar nếu người chơi chưa có ảnh đại diện.
+  //{giáº£i thĂ­ch code} Láº¥y 2 kĂ½ tá»± Ä‘áº§u lĂ m avatar náº¿u ngÆ°á»i chÆ¡i chÆ°a cĂ³ áº£nh Ä‘áº¡i diá»‡n.
   const words = displayName.trim().split(/\s+/).filter(Boolean);
 
   if (words.length >= 2) {
@@ -46,105 +40,8 @@ function getAvatarText(displayName: string) {
   return displayName.slice(0, 2).toUpperCase();
 }
 
-function getRankByElo(elo: number): ResolvedPlayerRank {
-  //{giải thích code} Quy đổi Elo sang rank theo hệ Đồng/Bạc/Vàng/Master, mỗi nhóm có bậc III/II/I.
-  if (elo >= 2100) {
-    return {
-      tier: "master",
-      division: 1,
-      text: "Master I",
-    };
-  }
-
-  if (elo >= 2000) {
-    return {
-      tier: "master",
-      division: 2,
-      text: "Master II",
-    };
-  }
-
-  if (elo >= 1900) {
-    return {
-      tier: "master",
-      division: 3,
-      text: "Master III",
-    };
-  }
-
-  if (elo >= 1800) {
-    return {
-      tier: "gold",
-      division: 1,
-      text: "Vàng I",
-    };
-  }
-
-  if (elo >= 1700) {
-    return {
-      tier: "gold",
-      division: 2,
-      text: "Vàng II",
-    };
-  }
-
-  if (elo >= 1600) {
-    return {
-      tier: "gold",
-      division: 3,
-      text: "Vàng III",
-    };
-  }
-
-  if (elo >= 1500) {
-    return {
-      tier: "silver",
-      division: 1,
-      text: "Bạc I",
-    };
-  }
-
-  if (elo >= 1400) {
-    return {
-      tier: "silver",
-      division: 2,
-      text: "Bạc II",
-    };
-  }
-
-  if (elo >= 1300) {
-    return {
-      tier: "silver",
-      division: 3,
-      text: "Bạc III",
-    };
-  }
-
-  if (elo >= 1200) {
-    return {
-      tier: "bronze",
-      division: 1,
-      text: "Đồng I",
-    };
-  }
-
-  if (elo >= 1100) {
-    return {
-      tier: "bronze",
-      division: 2,
-      text: "Đồng II",
-    };
-  }
-
-  return {
-    tier: "bronze",
-    division: 3,
-    text: "Đồng III",
-  };
-}
-
 function getRankBadgeSrc(rankTier: OnlinePlayerRankTier) {
-  //{giải thích code} Hiện tại mỗi nhóm rank dùng 1 badge đại diện, bậc I/II/III hiển thị bằng chữ bên cạnh.
+  //{giáº£i thĂ­ch code} Hiá»‡n táº¡i má»—i nhĂ³m rank dĂ¹ng 1 badge Ä‘áº¡i diá»‡n, báº­c I/II/III hiá»ƒn thá»‹ báº±ng chá»¯ bĂªn cáº¡nh.
   switch (rankTier) {
     case "bronze":
       return BronzeBadge;
@@ -164,28 +61,28 @@ function getRankBadgeSrc(rankTier: OnlinePlayerRankTier) {
 }
 
 function getStatusText(status: OnlinePlayerStatus) {
-  //{giải thích code} Chuyển status kỹ thuật thành text dễ hiểu cho tooltip.
+  //{giáº£i thĂ­ch code} Chuyá»ƒn status ká»¹ thuáº­t thĂ nh text dá»… hiá»ƒu cho tooltip.
   switch (status) {
     case "online":
-      return "Đang online";
+      return "Äang online";
 
     case "playing":
-      return "Đang đấu";
+      return "Äang Ä‘áº¥u";
 
     case "idle":
-      return "Đang chờ";
+      return "Äang chá»";
 
     default:
-      return "Không rõ trạng thái";
+      return "KhĂ´ng rĂµ tráº¡ng thĂ¡i";
   }
 }
 
-function OnlinePlayers({ players, onInvitePlayer }: OnlinePlayersProps) {
+function OnlinePlayers({ players }: OnlinePlayersProps) {
   return (
     <div className="op-panel">
       <div className="op-header">
         <span className="op-kicker">User Online</span>
-        <span className="op-count" title={`${players.length} người chơi online`}>
+        <span className="op-count" title={`${players.length} ngÆ°á»i chÆ¡i online`}>
           {players.length}
         </span>
       </div>
@@ -193,22 +90,19 @@ function OnlinePlayers({ players, onInvitePlayer }: OnlinePlayersProps) {
       <div className="op-list">
         {players.length > 0 ? (
           players.map((player) => {
-            //{giải thích code} Nếu người chơi đang trong ván thì không cho gửi lời mời đấu.
-            const isBusy = player.status === "playing";
-
-            //{giải thích code} Rank hiện tại được tính trực tiếp từ Elo để tránh mock thủ công sai logic.
+            //{giáº£i thĂ­ch code} Rank hiá»‡n táº¡i Ä‘Æ°á»£c tĂ­nh trá»±c tiáº¿p tá»« Elo Ä‘á»ƒ trĂ¡nh mock thá»§ cĂ´ng sai logic.
             const resolvedRank = getRankByElo(player.elo);
             const rankBadgeSrc = getRankBadgeSrc(resolvedRank.tier);
 
             const metaText = `Elo ${player.elo}${
-              player.subtitle ? ` · ${player.subtitle}` : ""
+              player.subtitle ? ` Â· ${player.subtitle}` : ""
             }`;
 
             return (
               <div
                 className="op-card"
                 key={player.id}
-                title={`${player.displayName} · ${resolvedRank.text} · ${getStatusText(
+                title={`${player.displayName} Â· ${resolvedRank.text} Â· ${getStatusText(
                   player.status
                 )}`}
               >
@@ -256,24 +150,17 @@ function OnlinePlayers({ players, onInvitePlayer }: OnlinePlayersProps) {
                   </span>
                 </div>
 
-                <button
-                  type="button"
-                  className="op-btn"
-                  onClick={() => onInvitePlayer?.(player)}
-                  disabled={isBusy}
-                  title={
-                    isBusy
-                      ? `${player.displayName} đang trong ván đấu`
-                      : `Mời ${player.displayName} đấu cờ`
-                  }
+                <span
+                  className={`op-status-pill op-status-pill--${player.status}`}
+                  title={getStatusText(player.status)}
                 >
-                  {isBusy ? "Đang đấu" : "Mời đấu"}
-                </button>
+                  {getStatusText(player.status)}
+                </span>
               </div>
             );
           })
         ) : (
-          <div className="op-empty">Chưa có người chơi nào online.</div>
+          <div className="op-empty">ChÆ°a cĂ³ ngÆ°á»i chÆ¡i nĂ o online.</div>
         )}
       </div>
     </div>

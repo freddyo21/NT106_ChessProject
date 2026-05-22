@@ -139,6 +139,16 @@
   font-size: 14px;
 }
 
+.player-profile-empty-state {
+  padding: 34px 18px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(103, 121, 153, 0.14);
+  color: #97a6bf;
+  text-align: center;
+  font-weight: 700;
+}
+
 .player-profile-edit-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;

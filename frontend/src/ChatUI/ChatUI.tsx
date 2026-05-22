@@ -15,6 +15,8 @@ type ChatUIProps = {
   roomName?: string;
   currentUserName?: string;
   initialMessages?: ChatMessage[];
+  messages?: ChatMessage[];
+  onSendText?: (text: string) => void;
   onSendMessage?: (message: ChatMessage) => void;
   /** Đường dẫn ảnh/SVG thay thế chữ cái trong avatar header — mặc định dùng logo Zess */
   avatarSrc?: string;
@@ -24,11 +26,13 @@ function ChatUI({
   roomName = "Phòng chat",
   currentUserName = "Bạn",
   initialMessages = [],
+  messages,
+  onSendText,
   onSendMessage,
   avatarSrc = defaultAvatar, //{Mặc định dùng logo Zess cho mọi ChatUI trong dự án}
 }: ChatUIProps) {
   //{Lưu toàn bộ danh sách tin nhắn đang hiển thị trên giao diện}
-  const [messages, setMessages] = useState<ChatMessage[]>(initialMessages);
+  const [localMessages, setLocalMessages] = useState<ChatMessage[]>(initialMessages);
 
   //{Lưu nội dung người dùng đang nhập trong ô chat}
   const [draftMessage, setDraftMessage] = useState("");
@@ -44,6 +48,7 @@ function ChatUI({
 
   //{Ref cho textarea để focus lại sau khi chọn emoji}
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const displayedMessages = messages ?? localMessages;
 
   //{Memo hóa tiêu đề phụ — ẩn bằng CSS ở lobby nhưng giữ lại ở các context khác}
   const roomSubtitle = useMemo(() => {
@@ -53,7 +58,7 @@ function ChatUI({
   useEffect(() => {
     //{Mỗi khi có tin nhắn mới thì tự động kéo xuống cuối khung chat}
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [displayedMessages]);
 
   useEffect(() => {
     //{Đóng emoji picker khi người dùng click ra ngoài vùng picker}
@@ -98,9 +103,14 @@ function ChatUI({
       isOwn: true,
     };
 
-    setMessages((prevMessages) => [...prevMessages, newMessage]);
+    // Nếu parent truyền messages từ socket thì không tự append local để tránh nhân đôi tin nhắn.
+    if (!messages) {
+      setLocalMessages((prevMessages) => [...prevMessages, newMessage]);
+    }
+
     setDraftMessage("");
     setIsEmojiPickerOpen(false);
+    onSendText?.(trimmedMessage);
     onSendMessage?.(newMessage);
     textareaRef.current?.focus();
   }
@@ -146,7 +156,7 @@ function ChatUI({
       </div>
 
       <div className="chat-ui__messages">
-        {messages.length === 0 ? (
+        {displayedMessages.length === 0 ? (
           <div className="chat-ui__empty">
             <div className="chat-ui__empty-icon">💬</div>
             <p className="chat-ui__empty-title">Chưa có tin nhắn nào</p>
@@ -155,7 +165,7 @@ function ChatUI({
             </p>
           </div>
         ) : (
-          messages.map((message) => (
+          displayedMessages.map((message) => (
             <div
               key={message.id}
               className={`chat-ui__message-row ${

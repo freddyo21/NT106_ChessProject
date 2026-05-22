@@ -31,9 +31,31 @@
 .match-history-header {
   display: flex;
   align-items: flex-start;
-  justify-content: space-between;
   gap: 16px;
   margin-bottom: 20px;
+}
+
+.match-history-back-button {
+  min-width: 156px;
+  height: 48px;
+  border: 1px solid var(--leaderboard-border, rgba(255,255,255,0.1));
+  background: var(--leaderboard-card-bg-soft, rgba(255,255,255,0.04));
+  color: var(--leaderboard-text-primary, #f5f7fb);
+  border-radius: 12px;
+  padding: 0 18px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+}
+
+.match-history-back-button:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--leaderboard-shadow, 0 10px 30px rgba(0,0,0,0.18));
 }
 
 /* Kicker: đổi màu sang accent tím giống leaderboard-kicker */

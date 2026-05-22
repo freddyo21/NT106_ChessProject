@@ -308,3 +308,18 @@ input {
     margin-bottom: -28px;
   }
 }
+
+.remember-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #cbd5e1;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.remember-row input {
+  width: 16px;
+  height: 16px;
+  accent-color: #4f46e5;
+}

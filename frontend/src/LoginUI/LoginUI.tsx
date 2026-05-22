@@ -1,74 +1,29 @@
 import { FormEvent, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { type LoginResponseDTO } from "@zess-online-chess/shared";
+import { setAuthSession } from "../services/authSession";
+import { userForgotPassword, userLogin, userRegister } from "../services/auth.services";
 import "./LoginUI.css";
 import logo from "../Image/ZessOnlChessLogoDon.svg";
 
 type AuthMode = "login" | "register" | "forgot_password";
-
-type DemoSessionUser = {
-  gmail: string;
-  displayName: string;
-  username: string;
-};
 
 type MessageState = {
   type: "error" | "success";
   text: string;
 } | null;
 
-const DEMO_AUTH_KEY = "zess_demo_logged_in";
-const USER_STORAGE_KEY = "zess_demo_user";
-const DEMO_PASSWORD_KEY = "zess_demo_password";
-const PROFILE_STORAGE_KEY = "zess_demo_profile";
-
-function getFallbackDemoUser(): DemoSessionUser {
-  //{giải thích code} Tài khoản demo mặc định để test giao diện đăng nhập.
-  return {
-    gmail: "admin@gmail.com",
-    displayName: "Lake",
-    username: "HoKR2911",
-  };
-}
-
-function getStoredDemoUser(): DemoSessionUser {
-  //{giải thích code} Lấy user đã lưu trong localStorage, nếu chưa có thì dùng user mặc định.
-  const fallbackUser = getFallbackDemoUser();
-
-  try {
-    const rawUser = localStorage.getItem(USER_STORAGE_KEY);
-    if (!rawUser) return fallbackUser;
-
-    const parsedUser = JSON.parse(rawUser) as DemoSessionUser;
-
-    if (parsedUser.gmail && parsedUser.displayName && parsedUser.username) {
-      return parsedUser;
-    }
-
-    return fallbackUser;
-  } catch {
-    return fallbackUser;
+function getErrorMessage(error: unknown) {
+  if (typeof error === "object" && error !== null && "response" in error) {
+    const response = (error as { response?: { data?: { message?: string; error?: string } } }).response;
+    return response?.data?.message || response?.data?.error;
   }
-}
 
-function getStoredDemoPassword() {
-  //{giải thích code} Lấy mật khẩu demo đã lưu, nếu chưa có thì dùng mật khẩu mặc định.
-  return localStorage.getItem(DEMO_PASSWORD_KEY) || "123456";
-}
+  if (error instanceof Error) {
+    return error.message;
+  }
 
-function ensureDemoProfile() {
-  //{giải thích code} Tạo dữ liệu profile demo mặc định để LobbyPage và PlayerProfile dùng được ngay.
-  const existingProfile = localStorage.getItem(PROFILE_STORAGE_KEY);
-
-  if (existingProfile) return;
-
-  const defaultProfile = {
-    elo: 1420,
-    wins: 24,
-    losses: 10,
-    draws: 6,
-  };
-
-  localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(defaultProfile));
+  return null;
 }
 
 function LoginUI() {
@@ -78,9 +33,10 @@ function LoginUI() {
   const [message, setMessage] = useState<MessageState>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const [loginUsername, setLoginUsername] = useState("");
+  const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
   const [showLoginPassword, setShowLoginPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(true);
 
   const [registerEmail, setRegisterEmail] = useState("");
   const [registerDisplayName, setRegisterDisplayName] = useState("");
@@ -88,214 +44,100 @@ function LoginUI() {
   const [registerPassword, setRegisterPassword] = useState("");
   const [registerConfirmPassword, setRegisterConfirmPassword] = useState("");
   const [showRegisterPassword, setShowRegisterPassword] = useState(false);
-  const [showRegisterConfirmPassword, setShowRegisterConfirmPassword] =
-    useState(false);
+  const [showRegisterConfirmPassword, setShowRegisterConfirmPassword] = useState(false);
 
   const [forgotIdentifier, setForgotIdentifier] = useState("");
 
   const switchMode = (mode: AuthMode) => {
-    //{giải thích code} Chuyển tab giữa đăng nhập, đăng ký và quên mật khẩu, đồng thời xóa thông báo cũ.
     setAuthMode(mode);
     setMessage(null);
   };
 
-  const handleLogin = (event: FormEvent<HTMLFormElement>) => {
+  const handleLogin = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-
-    //{giải thích code} Bắt đầu submit và xóa thông báo cũ.
     setIsSubmitting(true);
     setMessage(null);
 
-    const normalizedUsername = loginUsername.trim();
-    const normalizedPassword = loginPassword.trim();
+    try {
+      const result = (await userLogin({
+        email: loginEmail.trim().toLowerCase(),
+        password: loginPassword,
+        rememberMe,
+      })) as LoginResponseDTO;
 
-    if (!normalizedUsername || !normalizedPassword) {
+      // The whole realtime layer reads accessToken from this session helper.
+      setAuthSession({
+        accessToken: result.accessToken,
+        refreshToken: result.refreshToken,
+        user: result.user,
+      });
+
+      navigate("/lobby", { replace: true });
+    } catch (error) {
       setMessage({
         type: "error",
-        text: "Vui lòng nhập đầy đủ tên tài khoản và mật khẩu.",
+        text: getErrorMessage(error) || "Đăng nhập thất bại. Vui lòng kiểm tra email và mật khẩu.",
       });
+    } finally {
       setIsSubmitting(false);
-      return;
     }
-
-    const storedUser = getStoredDemoUser();
-    const storedPassword = getStoredDemoPassword();
-
-    const isValidLogin =
-      normalizedUsername.toLowerCase() === storedUser.username.toLowerCase() &&
-      normalizedPassword === storedPassword;
-
-    if (!isValidLogin) {
-      setMessage({
-        type: "error",
-        text: "Sai tên tài khoản hoặc mật khẩu. Demo mặc định: HoKR2911 / 123456",
-      });
-      setIsSubmitting(false);
-      return;
-    }
-
-    //{giải thích code} Lưu trạng thái đăng nhập và user hiện tại để các màn sau dùng lại.
-    localStorage.setItem(DEMO_AUTH_KEY, "true");
-    localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(storedUser));
-    ensureDemoProfile();
-
-    setMessage({
-      type: "success",
-      text: "Đăng nhập thành công. Đang chuyển vào Lobby...",
-    });
-
-    setIsSubmitting(false);
-    navigate("/lobby", { replace: true });
   };
 
-  const handleRegister = (event: FormEvent<HTMLFormElement>) => {
+  const handleRegister = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-
     setIsSubmitting(true);
     setMessage(null);
 
-    const normalizedEmail = registerEmail.trim().toLowerCase();
-    const normalizedDisplayName = registerDisplayName.trim();
-    const normalizedUsername = registerUsername.trim();
+    try {
+      await userRegister({
+        name: registerDisplayName.trim(),
+        email: registerEmail.trim().toLowerCase(),
+        username: registerUsername.trim(),
+        password: registerPassword,
+        confirmPassword: registerConfirmPassword,
+      });
 
-    if (
-      !normalizedEmail ||
-      !normalizedDisplayName ||
-      !normalizedUsername ||
-      !registerPassword.trim() ||
-      !registerConfirmPassword.trim()
-    ) {
+      setLoginEmail(registerEmail.trim().toLowerCase());
+      setLoginPassword("");
+      setRegisterEmail("");
+      setRegisterDisplayName("");
+      setRegisterUsername("");
+      setRegisterPassword("");
+      setRegisterConfirmPassword("");
+      setAuthMode("login");
+      setMessage({
+        type: "success",
+        text: "Đăng ký thành công. Vui lòng đăng nhập sau khi tài khoản được xác thực.",
+      });
+    } catch (error) {
       setMessage({
         type: "error",
-        text: "Vui lòng nhập đầy đủ tất cả các trường đăng ký.",
+        text: getErrorMessage(error) || "Đăng ký thất bại. Vui lòng kiểm tra lại thông tin.",
       });
+    } finally {
       setIsSubmitting(false);
-      return;
     }
-
-    if (!normalizedEmail.endsWith("@gmail.com")) {
-      setMessage({
-        type: "error",
-        text: "Hiện tại giao diện demo chỉ chấp nhận địa chỉ Gmail.",
-      });
-      setIsSubmitting(false);
-      return;
-    }
-
-    if (normalizedDisplayName.length < 2) {
-      setMessage({
-        type: "error",
-        text: "Tên hiển thị phải có ít nhất 2 ký tự.",
-      });
-      setIsSubmitting(false);
-      return;
-    }
-
-    if (normalizedUsername.length < 4) {
-      setMessage({
-        type: "error",
-        text: "Tên tài khoản phải có ít nhất 4 ký tự.",
-      });
-      setIsSubmitting(false);
-      return;
-    }
-
-    if (/\s/.test(normalizedUsername)) {
-      setMessage({
-        type: "error",
-        text: "Tên tài khoản không được chứa khoảng trắng.",
-      });
-      setIsSubmitting(false);
-      return;
-    }
-
-    if (registerPassword.length < 6) {
-      setMessage({
-        type: "error",
-        text: "Mật khẩu phải có ít nhất 6 ký tự.",
-      });
-      setIsSubmitting(false);
-      return;
-    }
-
-    if (registerPassword !== registerConfirmPassword) {
-      setMessage({
-        type: "error",
-        text: "Xác nhận mật khẩu chưa khớp.",
-      });
-      setIsSubmitting(false);
-      return;
-    }
-
-    const newDemoUser: DemoSessionUser = {
-      gmail: normalizedEmail,
-      displayName: normalizedDisplayName,
-      username: normalizedUsername,
-    };
-
-    //{giải thích code} Lưu tài khoản demo mới để dùng cho đăng nhập và các màn sau.
-    localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(newDemoUser));
-    localStorage.setItem(DEMO_PASSWORD_KEY, registerPassword);
-    ensureDemoProfile();
-
-    //{giải thích code} Đổ sẵn tên tài khoản vào ô login để tiện đăng nhập ngay.
-    setLoginUsername(normalizedUsername);
-    setLoginPassword("");
-
-    //{giải thích code} Reset form đăng ký sau khi đăng ký thành công.
-    setRegisterEmail("");
-    setRegisterDisplayName("");
-    setRegisterUsername("");
-    setRegisterPassword("");
-    setRegisterConfirmPassword("");
-
-    setAuthMode("login");
-    setMessage({
-      type: "success",
-      text: "Đăng ký demo thành công. Bạn có thể đăng nhập ngay bây giờ.",
-    });
-
-    setIsSubmitting(false);
   };
 
-  const handleForgotPassword = (event: FormEvent<HTMLFormElement>) => {
+  const handleForgotPassword = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-
     setIsSubmitting(true);
     setMessage(null);
 
-    const normalizedIdentifier = forgotIdentifier.trim().toLowerCase();
-
-    if (!normalizedIdentifier) {
+    try {
+      await userForgotPassword(forgotIdentifier.trim().toLowerCase());
+      setMessage({
+        type: "success",
+        text: "Nếu email tồn tại trong hệ thống, hướng dẫn khôi phục mật khẩu đã được gửi.",
+      });
+    } catch (error) {
       setMessage({
         type: "error",
-        text: "Vui lòng nhập Gmail hoặc tên tài khoản.",
+        text: getErrorMessage(error) || "Không thể gửi yêu cầu khôi phục mật khẩu.",
       });
+    } finally {
       setIsSubmitting(false);
-      return;
     }
-
-    const storedUser = getStoredDemoUser();
-
-    const isMatched =
-      normalizedIdentifier === storedUser.gmail.toLowerCase() ||
-      normalizedIdentifier === storedUser.username.toLowerCase();
-
-    if (!isMatched) {
-      setMessage({
-        type: "error",
-        text: "Không tìm thấy tài khoản phù hợp trong dữ liệu demo.",
-      });
-      setIsSubmitting(false);
-      return;
-    }
-
-    setMessage({
-      type: "success",
-      text: "Đã gửi OTP demo tới gmail của bạn. Ở bản hiện tại đây chỉ là giao diện mô phỏng.",
-    });
-
-    setIsSubmitting(false);
   };
 
   return (
@@ -349,17 +191,18 @@ function LoginUI() {
             <form className="auth-form" onSubmit={handleLogin}>
               <h2>Đăng nhập</h2>
               <p className="auth-description">
-                Đăng nhập bằng tên tài khoản và mật khẩu để vào hệ thống.
+                Đăng nhập bằng email và mật khẩu để vào hệ thống.
               </p>
 
-              <label htmlFor="login-username">Tên tài khoản</label>
+              <label htmlFor="login-email">Email</label>
               <input
-                id="login-username"
-                type="text"
-                placeholder="Nhập tên tài khoản"
-                value={loginUsername}
-                onChange={(event) => setLoginUsername(event.target.value)}
+                id="login-email"
+                type="email"
+                placeholder="Nhập email"
+                value={loginEmail}
+                onChange={(event) => setLoginEmail(event.target.value)}
                 disabled={isSubmitting}
+                autoComplete="email"
               />
 
               <label htmlFor="login-password">Mật khẩu</label>
@@ -371,6 +214,7 @@ function LoginUI() {
                   value={loginPassword}
                   onChange={(event) => setLoginPassword(event.target.value)}
                   disabled={isSubmitting}
+                  autoComplete="current-password"
                 />
                 <button
                   type="button"
@@ -381,6 +225,16 @@ function LoginUI() {
                   {showLoginPassword ? "Ẩn" : "Hiện"}
                 </button>
               </div>
+
+              <label className="remember-row">
+                <input
+                  type="checkbox"
+                  checked={rememberMe}
+                  onChange={(event) => setRememberMe(event.target.checked)}
+                  disabled={isSubmitting}
+                />
+                Ghi nhớ đăng nhập
+              </label>
 
               <button
                 type="button"
@@ -396,7 +250,7 @@ function LoginUI() {
                 className="submit-btn"
                 disabled={isSubmitting}
               >
-                Đăng nhập
+                {isSubmitting ? "Đang đăng nhập..." : "Đăng nhập"}
               </button>
 
               {message && (
@@ -414,22 +268,19 @@ function LoginUI() {
             <form className="auth-form" onSubmit={handleRegister}>
               <h2>Đăng ký</h2>
               <p className="auth-description">
-                Đăng ký bằng Gmail để thuận tiện cho xác thực OTP và khôi phục
-                mật khẩu sau này.
+                Tạo tài khoản bằng email để dùng Auth thật và kết nối WebSocket.
               </p>
 
-              <label htmlFor="register-gmail">Gmail</label>
+              <label htmlFor="register-gmail">Email</label>
               <input
                 id="register-gmail"
-                type="gmail"
-                placeholder="Nhập Gmail"
+                type="email"
+                placeholder="Nhập email"
                 value={registerEmail}
                 onChange={(event) => setRegisterEmail(event.target.value)}
                 disabled={isSubmitting}
+                autoComplete="email"
               />
-              <p className="input-hint">
-                Chỉ chấp nhận địa chỉ có đuôi @gmail.com.
-              </p>
 
               <label htmlFor="register-display-name">Tên hiển thị</label>
               <input
@@ -439,6 +290,7 @@ function LoginUI() {
                 value={registerDisplayName}
                 onChange={(event) => setRegisterDisplayName(event.target.value)}
                 disabled={isSubmitting}
+                autoComplete="name"
               />
 
               <label htmlFor="register-username">Tên tài khoản</label>
@@ -449,6 +301,7 @@ function LoginUI() {
                 value={registerUsername}
                 onChange={(event) => setRegisterUsername(event.target.value)}
                 disabled={isSubmitting}
+                autoComplete="username"
               />
 
               <label htmlFor="register-password">Mật khẩu</label>
@@ -460,6 +313,7 @@ function LoginUI() {
                   value={registerPassword}
                   onChange={(event) => setRegisterPassword(event.target.value)}
                   disabled={isSubmitting}
+                  autoComplete="new-password"
                 />
                 <button
                   type="button"
@@ -480,17 +334,14 @@ function LoginUI() {
                   type={showRegisterConfirmPassword ? "text" : "password"}
                   placeholder="Nhập lại mật khẩu"
                   value={registerConfirmPassword}
-                  onChange={(event) =>
-                    setRegisterConfirmPassword(event.target.value)
-                  }
+                  onChange={(event) => setRegisterConfirmPassword(event.target.value)}
                   disabled={isSubmitting}
+                  autoComplete="new-password"
                 />
                 <button
                   type="button"
                   className="toggle-password-btn"
-                  onClick={() =>
-                    setShowRegisterConfirmPassword((prev) => !prev)
-                  }
+                  onClick={() => setShowRegisterConfirmPassword((prev) => !prev)}
                   disabled={isSubmitting}
                 >
                   {showRegisterConfirmPassword ? "Ẩn" : "Hiện"}
@@ -502,7 +353,7 @@ function LoginUI() {
                 className="submit-btn"
                 disabled={isSubmitting}
               >
-                Đăng ký
+                {isSubmitting ? "Đang đăng ký..." : "Đăng ký"}
               </button>
 
               {message && (
@@ -520,20 +371,18 @@ function LoginUI() {
             <form className="auth-form" onSubmit={handleForgotPassword}>
               <h2>Quên mật khẩu</h2>
               <p className="auth-description">
-                Nhập Gmail hoặc tên tài khoản để nhận OTP khôi phục mật
-                khẩu. Hiện tại đây là luồng demo giao diện.
+                Nhập email để nhận hướng dẫn khôi phục mật khẩu.
               </p>
 
-              <label htmlFor="forgot-identifier">
-                Gmail hoặc tên tài khoản
-              </label>
+              <label htmlFor="forgot-identifier">Email</label>
               <input
                 id="forgot-identifier"
-                type="text"
-                placeholder="Ví dụ: admin@gmail.com hoặc HoKR2911"
+                type="email"
+                placeholder="Nhập email"
                 value={forgotIdentifier}
                 onChange={(event) => setForgotIdentifier(event.target.value)}
                 disabled={isSubmitting}
+                autoComplete="email"
               />
 
               <button
@@ -541,7 +390,7 @@ function LoginUI() {
                 className="submit-btn"
                 disabled={isSubmitting}
               >
-                Gửi OTP demo
+                {isSubmitting ? "Đang gửi..." : "Gửi yêu cầu"}
               </button>
 
               {message && (

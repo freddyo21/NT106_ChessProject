@@ -1,5 +1,6 @@
 import { LoginRequestDTO, LoginRequestSchema, RegisterRequestDTO, RegisterRequestSchema } from "@zess-online-chess/shared";
 import { HttpClient } from "./HttpClient"
+import { getRefreshToken } from "./authSession";
 
 export const userLogin = async (data: LoginRequestDTO) => {
     const { email, password, rememberMe } = LoginRequestSchema.parse(data);
@@ -45,9 +46,33 @@ export const refreshTokens = async (refreshToken: string) => {
     }
 }
 
+export const userForgotPassword = async (email: string) => {
+    try {
+        const result = await HttpClient.post("/auth/forgot-password", { email });
+
+        return result.data;
+    } catch (error) {
+        throw error;
+    }
+}
+
+export const userChangePassword = async (data: {
+    currentPassword: string;
+    newPassword: string;
+    confirmPassword: string;
+}) => {
+    try {
+        const result = await HttpClient.post("/auth/change-password", data);
+
+        return result.data;
+    } catch (error) {
+        throw error;
+    }
+}
+
 export const userLogout = async () => {
     try {
-        await HttpClient.post("/auth/logout");
+        await HttpClient.post("/auth/logout", { refreshToken: getRefreshToken() });
     } catch (error) {
         throw error;
     }

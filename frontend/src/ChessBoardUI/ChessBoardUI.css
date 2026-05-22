@@ -146,6 +146,20 @@
 }
 .chess-app .game-status-content h3 { margin: 0; font-size: 20px; }
 .chess-app .game-status-content p  { display: none; }
+.chess-app .game-status-container.check,
+.chess-app .game-status-container.checkmate {
+  border-color: rgba(239, 68, 68, 0.48);
+  background: linear-gradient(180deg, rgba(69, 18, 30, 0.96) 0%, rgba(32, 12, 24, 0.98) 100%);
+  box-shadow:
+    0 10px 28px rgba(127, 29, 29, 0.28),
+    inset 0 0 0 1px rgba(248, 113, 113, 0.08);
+}
+.chess-app .game-status-container.check .game-status-content p,
+.chess-app .game-status-container.checkmate .game-status-content p {
+  display: block;
+  margin-top: 4px;
+  color: #fecaca;
+}
 
 /* ── Board ───────────────────────────────────── */
 .board-section {
@@ -198,6 +212,34 @@
 .selected {
   box-shadow: inset 0 0 0 3px rgba(201,225,255,.82), inset 0 0 18px rgba(255,255,255,.08);
   z-index: 2;
+}
+
+.checked-king {
+  z-index: 3;
+  animation: cb-check-pulse 0.95s ease-in-out infinite;
+  box-shadow:
+    inset 0 0 0 4px rgba(248, 113, 113, 0.98),
+    inset 0 0 26px rgba(220, 38, 38, 0.52),
+    0 0 22px rgba(239, 68, 68, 0.42);
+}
+
+.checked-king::before {
+  content: "";
+  position: absolute;
+  inset: 7px;
+  border: 2px solid rgba(254, 202, 202, 0.86);
+  border-radius: 8px;
+  pointer-events: none;
+  z-index: 4;
+}
+
+@keyframes cb-check-pulse {
+  0%, 100% {
+    filter: brightness(1.08);
+  }
+  50% {
+    filter: brightness(1.28);
+  }
 }
 
 /* Valid move dots */
@@ -590,6 +632,85 @@
   border-color: rgba(168,85,247,.4);
 }
 
+/* Pawn promotion */
+.cb-promotion-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(2, 6, 23, 0.68);
+  backdrop-filter: blur(6px);
+}
+
+.cb-promotion-panel {
+  width: min(420px, 100%);
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 16px;
+  padding: 20px;
+  background:
+    linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(5, 12, 24, 0.98));
+  box-shadow: 0 22px 70px rgba(0, 0, 0, 0.5);
+}
+
+.cb-promotion-kicker {
+  margin: 0 0 6px;
+  color: #7dd3fc;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.cb-promotion-panel h2 {
+  margin: 0 0 16px;
+  color: #f8fafc;
+  font-size: 22px;
+  line-height: 1.2;
+}
+
+.cb-promotion-options {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+
+.cb-promotion-option {
+  min-width: 0;
+  min-height: 98px;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: 12px;
+  background: rgba(15, 23, 42, 0.78);
+  color: #e2e8f0;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: 0.16s ease;
+}
+
+.cb-promotion-option:hover {
+  transform: translateY(-2px);
+  border-color: rgba(125, 211, 252, 0.42);
+  background: rgba(14, 165, 233, 0.12);
+}
+
+.cb-promotion-option img {
+  width: 46px;
+  height: 46px;
+  object-fit: contain;
+  filter: drop-shadow(0 3px 5px rgba(0,0,0,.32));
+}
+
+.cb-promotion-option span {
+  font-size: 12px;
+  font-weight: 800;
+}
+
 /* ── RESPONSIVE ──────────────────────────────── */
 @media (max-width: 900px) {
   .chess-shell {
@@ -623,4 +744,8 @@
 
   .square { width: 42px; height: 42px; }
   .rank-label, .file-label { font-size: 9px; }
+
+  .cb-promotion-options {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }

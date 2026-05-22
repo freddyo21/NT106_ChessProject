@@ -107,7 +107,7 @@
 .room-list-toolbar {
   flex-shrink: 0;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 380px;
+  grid-template-columns: minmax(0, 1fr) minmax(420px, 520px);
   align-items: center;
   gap: 12px;
   margin-bottom: 14px;
@@ -149,8 +149,6 @@
   color: #f8fafc;
   background: rgba(15, 23, 42, 0.86);
   font-size: 14px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
 }
 
 .room-code-input::placeholder {

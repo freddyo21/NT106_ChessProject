@@ -1,183 +1,197 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { DEFAULT_ELO, getRankByElo } from "@zess-online-chess/shared";
 import OnlinePlayers, { type OnlinePlayer } from "../OnlinePlayersUI/OnlinePlayers";
 import ChatUI, { type ChatMessage } from "../ChatUI/ChatUI";
 import coverImage from "../Image/Cover2.jpg";
 import logoImage from "../Image/ZessOnlChessLogoDon.svg";
-import lobbyIcon from "../Image/LobbyIcon.svg"; 
+import lobbyIcon from "../Image/LobbyIcon.svg";
+import {
+  disconnectAppSocket,
+  getAppSocket,
+  type LobbyMessagePayload,
+  type PresenceUser,
+} from "../services/socketClient";
+import {
+  clearAuthSession,
+  getCurrentUser,
+  getUserDisplayName,
+} from "../services/authSession";
+import { userLogout } from "../services/auth.services";
 import "./LobbyPage.css";
 
-type DemoSessionUser = {
-  email: string
-  displayName: string;
-  username: string;
-};
+function formatSocketTimestamp(timestamp: string) {
+  return new Date(timestamp).toLocaleTimeString("vi-VN", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
 
-type PlayerProfileStats = {
-  elo: number;
-  wins: number;
-  losses: number;
-  draws: number;
-};
+function createLobbyMessageId() {
+  // Client id is reused by backend echo so optimistic chat can dedupe cleanly.
+  return `lobby-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
 
-const DEMO_AUTH_KEY = "zess_demo_logged_in";
-const USER_STORAGE_KEY = "zess_demo_user";
-const PROFILE_STORAGE_KEY = "zess_demo_profile";
-
-const mockOnlinePlayers: OnlinePlayer[] = [
-  {
-    id: "player-01",
-    displayName: "LyNa",
-    elo: 1650,
-    status: "online",
+function mapPresenceToOnlinePlayer(user: PresenceUser): OnlinePlayer {
+  // Presence comes from authenticated sockets, so no mock online list is kept on the client.
+  return {
+    id: user.userId,
+    displayName: user.displayName || user.username,
+    elo: user.elo,
+    status: user.status,
     subtitle: "Đang ở sảnh chính",
-    activityText: "Sẵn sàng nhận lời mời đấu",
-  },
-  {
-    id: "player-02",
-    displayName: "Ngoc",
-    elo: 1580,
-    status: "playing",
-    subtitle: "Đang đấu xếp hạng",
-    activityText: "Ván đấu đang diễn ra",
-  },
-  {
-    id: "player-03",
-    displayName: "DuyAnh",
-    elo: 1495,
-    status: "idle",
-    subtitle: "Đang chờ trong room riêng",
-    activityText: "Có thể mời vào phòng",
-  },
-];
-
-const initialLobbyChatMessages: ChatMessage[] = [
-  {
-    id: "msg-01",
-    sender: "System",
-    text: "Chào mừng bạn đến với Lobby của Zess Online Chess.",
-    timestamp: "09:20",
-    isOwn: false,
-  },
-  {
-    id: "msg-02",
-    sender: "LyNa",
-    text: "Ai muốn test một ván nhanh không?",
-    timestamp: "09:21",
-    isOwn: false,
-  },
-];
-
-function getDemoUser(): DemoSessionUser {
-  const fallbackUser: DemoSessionUser = {
-    email: "admin@gmail.com",
-    displayName: "Lake",
-    username: "HoKR2911",
   };
-
-  try {
-    const rawUser = localStorage.getItem(USER_STORAGE_KEY);
-    if (!rawUser) return fallbackUser;
-
-    const parsedUser = JSON.parse(rawUser) as DemoSessionUser;
-
-    if (parsedUser.displayName && parsedUser.username && parsedUser.email) {
-      return parsedUser;
-    }
-
-    return fallbackUser;
-  } catch {
-    return fallbackUser;
-  }
-}
-
-function getDemoProfileStats(): PlayerProfileStats {
-  const fallbackProfile: PlayerProfileStats = {
-    elo: 1420,
-    wins: 24,
-    losses: 10,
-    draws: 6,
-  };
-
-  try {
-    const rawProfile = localStorage.getItem(PROFILE_STORAGE_KEY);
-
-    if (!rawProfile) {
-      localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(fallbackProfile));
-      return fallbackProfile;
-    }
-
-    const parsedProfile = JSON.parse(rawProfile) as PlayerProfileStats;
-
-    if (
-      typeof parsedProfile.elo === "number" &&
-      typeof parsedProfile.wins === "number" &&
-      typeof parsedProfile.losses === "number" &&
-      typeof parsedProfile.draws === "number"
-    ) {
-      return parsedProfile;
-    }
-
-    return fallbackProfile;
-  } catch {
-    return fallbackProfile;
-  }
-}
-
-function createRandomRoomCode() {
-  const characters = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  let result = "";
-
-  for (let i = 0; i < 6; i += 1) {
-    const randomIndex = Math.floor(Math.random() * characters.length);
-    result += characters[randomIndex];
-  }
-
-  return result;
 }
 
 function LobbyPage() {
   const navigate = useNavigate();
-  const [onlinePlayers] = useState<OnlinePlayer[]>(mockOnlinePlayers);
+  const [onlinePlayers, setOnlinePlayers] = useState<OnlinePlayer[]>([]);
+  const [lobbyMessages, setLobbyMessages] = useState<ChatMessage[]>([]);
 
-  const currentUser = useMemo(() => getDemoUser(), []);
-  const currentProfile = useMemo(() => getDemoProfileStats(), []);
+  const currentUser = useMemo(() => getCurrentUser(), []);
+  const currentElo = currentUser?.elo ?? DEFAULT_ELO;
+  const currentDisplayName = currentUser ? getUserDisplayName(currentUser) : "";
+  const currentRank = useMemo(() => getRankByElo(currentElo), [currentElo]);
+
+  useEffect(() => {
+    if (!currentUser) {
+      navigate("/login", { replace: true });
+    }
+  }, [currentUser, navigate]);
+
+  useEffect(() => {
+    const socket = getAppSocket();
+
+    if (!socket || !currentUser) {
+      return;
+    }
+
+    const handlePresenceList = (users: PresenceUser[]) => {
+      setOnlinePlayers(users.map(mapPresenceToOnlinePlayer));
+    };
+
+    const handleUserOnline = (user: PresenceUser) => {
+      setOnlinePlayers((prevPlayers) => {
+        const nextPlayer = mapPresenceToOnlinePlayer(user);
+        const existingIndex = prevPlayers.findIndex((player) => player.id === nextPlayer.id);
+
+        if (existingIndex >= 0) {
+          const nextPlayers = [...prevPlayers];
+          nextPlayers[existingIndex] = nextPlayer;
+          return nextPlayers;
+        }
+
+        return [...prevPlayers, nextPlayer];
+      });
+    };
+
+    const handleUserOffline = ({ userId }: { userId: string }) => {
+      setOnlinePlayers((prevPlayers) => prevPlayers.filter((player) => player.id !== userId));
+    };
+
+    const handleLobbyMessage = (payload: LobbyMessagePayload) => {
+      setLobbyMessages((prevMessages) => {
+        const serverMessage: ChatMessage = {
+          id: payload.id,
+          sender: payload.sender,
+          text: payload.text,
+          timestamp: formatSocketTimestamp(payload.timestamp),
+          isOwn: payload.sender === currentUser.username,
+        };
+        const existingIndex = prevMessages.findIndex((message) => message.id === payload.id);
+
+        if (existingIndex >= 0) {
+          const nextMessages = [...prevMessages];
+          nextMessages[existingIndex] = serverMessage;
+          return nextMessages;
+        }
+
+        return [...prevMessages, serverMessage];
+      });
+    };
+
+    socket.on("presence:list", handlePresenceList);
+    socket.on("presence:user_online", handleUserOnline);
+    socket.on("presence:user_offline", handleUserOffline);
+    socket.on("lobby:message", handleLobbyMessage);
+
+    if (!socket.connected) {
+      socket.connect();
+    }
+
+    socket.emit("lobby:join");
+    socket.emit("presence:list", handlePresenceList);
+
+    return () => {
+      socket.off("presence:list", handlePresenceList);
+      socket.off("presence:user_online", handleUserOnline);
+      socket.off("presence:user_offline", handleUserOffline);
+      socket.off("lobby:message", handleLobbyMessage);
+    };
+  }, [currentUser]);
 
   const handleOpenLeaderboard = () => navigate("/leaderboard");
   const handleOpenMatchHistory = () => navigate("/match-history");
-  const handleOpenPlayerProfile = () => navigate("/player-profile");
+  const handleOpenPlayerProfile = () => navigate("/profile");
   const handleOpenRoomList = () => navigate("/rooms");
 
   const handleQuickPlay = () => {
-    navigate("/room", {
+    if (!currentUser) return;
+
+    navigate("/quick-match", {
       state: {
-        source: "quick-join",
-        roomId: `quick-${Date.now()}`,
-        roomName: "Phòng đấu nhanh",
-        roomCode: createRandomRoomCode(),
-        isPrivate: false,
-        hostName: currentUser.username,
+        username: currentUser.username,
+        elo: currentElo,
       },
     });
   };
 
   const handleLogout = () => {
-    localStorage.removeItem(DEMO_AUTH_KEY);
-    localStorage.removeItem(USER_STORAGE_KEY);
+    disconnectAppSocket();
+    void userLogout().catch(() => undefined);
+    clearAuthSession();
     navigate("/login", { replace: true });
   };
 
-  const handleInvitePlayer = (player: OnlinePlayer) => {
-    alert(`Đã gửi lời mời đấu tới ${player.displayName}.`);
+  const handleSendLobbyMessage = (message: string) => {
+    if (!currentUser) return;
+
+    const clientId = createLobbyMessageId();
+    const optimisticMessage: ChatMessage = {
+      id: clientId,
+      sender: currentUser.username,
+      text: message,
+      timestamp: formatSocketTimestamp(new Date().toISOString()),
+      isOwn: true,
+    };
+
+    setLobbyMessages((prevMessages) => [...prevMessages, optimisticMessage]);
+
+    const socket = getAppSocket();
+
+    if (!socket) {
+      return;
+    }
+
+    socket.emit("lobby:send_message", { message, clientId }, (response) => {
+      if (response.ok) {
+        return;
+      }
+
+      setLobbyMessages((prevMessages) =>
+        prevMessages.filter((chatMessage) => chatMessage.id !== clientId)
+      );
+    });
   };
+
+  if (!currentUser) {
+    return null;
+  }
 
   return (
     <div className="lobby-page">
       <div className="lobby-desktop">
-
-        {/* ── TOPBAR ── */}
         <header className="lobby-topbar">
-          {/* [1] Logo to hơn, bỏ hiệu ứng hover sáng */}
           <button
             type="button"
             className="lobby-logo-box"
@@ -188,7 +202,6 @@ function LobbyPage() {
           </button>
 
           <nav className="lobby-nav" aria-label="Lobby navigation">
-            {/* [3] Bỏ chú giải — chỉ dùng text thuần */}
             <button type="button" className="lobby-nav-item active">
               Lobby
             </button>
@@ -215,10 +228,9 @@ function LobbyPage() {
               onClick={handleOpenPlayerProfile}
               title="Mở Profile"
             >
-              {currentUser.username} <span>|</span> Elo {currentProfile.elo}
+              {currentUser.username} <span>|</span> {currentRank.text} · Elo {currentElo}
             </button>
 
-            {/* "?" → Wikipedia Cờ Vua */}
             <a
               href="https://vi.wikipedia.org/wiki/C%E1%BB%9D_vua"
               target="_blank"
@@ -240,7 +252,6 @@ function LobbyPage() {
           </div>
         </header>
 
-        {/* ── COVER ── */}
         <section
           className="lobby-cover"
           style={{ backgroundImage: `url(${coverImage})` }}
@@ -249,11 +260,9 @@ function LobbyPage() {
           <div className="lobby-cover-overlay">
             <p className="lobby-cover-kicker">ZESS ONLINE CHESS</p>
             <h1>Lobby</h1>
-            {/* [6] Bỏ dòng chữ nhỏ dưới LOBBY */}
           </div>
         </section>
 
-        {/* ── ACTION ROW ── */}
         <section className="lobby-action-row" aria-label="Lobby actions">
           <button
             type="button"
@@ -262,7 +271,6 @@ function LobbyPage() {
           >
             Chơi Ngay
           </button>
-          {/* [2] Đổi "DS Phòng" → "Danh sách phòng" */}
           <button
             type="button"
             className="lobby-main-btn secondary"
@@ -272,29 +280,22 @@ function LobbyPage() {
           </button>
         </section>
 
-        {/* ── CONTENT GRID ── */}
         <main className="lobby-content-grid">
-
-          {/* [5] Truyền avatarSrc = LobbyIcon.svg thay chữ "L" */}
           <div className="lobby-chat-panel">
             <ChatUI
               roomName="Lobby Chat"
-              currentUserName={currentUser.displayName || currentUser.username}
-              initialMessages={initialLobbyChatMessages}
+              currentUserName={currentDisplayName || currentUser.username}
+              messages={lobbyMessages}
+              onSendText={handleSendLobbyMessage}
               avatarSrc={lobbyIcon}
             />
           </div>
 
-          {/* [4] Bỏ lobby-online-strip — không hiện "4 User Online" nữa */}
           <aside className="lobby-players-panel">
             <div className="lobby-players-scroll">
-              <OnlinePlayers
-                players={onlinePlayers}
-                onInvitePlayer={handleInvitePlayer}
-              />
+              <OnlinePlayers players={onlinePlayers} />
             </div>
           </aside>
-
         </main>
       </div>
     </div>

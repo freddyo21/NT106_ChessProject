@@ -31,15 +31,21 @@
 }
 
 .leaderboard-back-button {
+  min-width: 156px;
+  height: 48px;
   border: 1px solid var(--leaderboard-border);
   background: var(--leaderboard-card-bg-soft);
   color: var(--leaderboard-text-primary);
   border-radius: 12px;
-  padding: 10px 16px;
+  padding: 0 18px;
   font-size: 14px;
   font-weight: 700;
   cursor: pointer;
   transition: 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
 }
 
 .leaderboard-back-button:hover {
@@ -122,6 +128,17 @@
   grid-template-columns: repeat(3, 1fr);
   gap: 18px;
   margin-bottom: 26px;
+}
+
+.leaderboard-top-empty {
+  grid-column: 1 / -1;
+}
+
+.leaderboard-empty-state {
+  padding: 34px 18px;
+  text-align: center;
+  color: var(--leaderboard-text-secondary);
+  font-weight: 700;
 }
 
 .leaderboard-top-card {

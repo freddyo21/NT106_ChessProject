@@ -2,14 +2,12 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import { HashRouter } from "react-router-dom";
 import App from "./App";
-import { SocketProvider } from "./services/SocketContext";
 
+// Demo mode chạy thuần localStorage nên chưa bọc SocketProvider ở nhánh frontend hiện tại.
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
     <HashRouter>
-      <SocketProvider>
-        <App />
-      </SocketProvider>
+      <App />
     </HashRouter>
   </React.StrictMode>
 );

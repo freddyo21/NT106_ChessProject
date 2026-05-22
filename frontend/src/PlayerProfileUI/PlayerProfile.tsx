@@ -1,12 +1,14 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { DEFAULT_ELO, ERoles } from "@zess-online-chess/shared";
+import {
+  getCurrentUser,
+  getUserDisplayName,
+  updateAuthSessionUser,
+  type AuthSessionUser,
+} from "../services/authSession";
+import { userChangePassword } from "../services/auth.services";
 import "./PlayerProfile.css";
-
-type DemoSessionUser = {
-  email: string;
-  displayName: string;
-  username: string;
-};
 
 type PlayerProfileStats = {
   elo: number;
@@ -15,67 +17,17 @@ type PlayerProfileStats = {
   draws: number;
 };
 
-const USER_STORAGE_KEY = "zess_demo_user";
-const PROFILE_STORAGE_KEY = "zess_demo_profile";
-
-function getDemoUser(): DemoSessionUser {
-  const fallbackUser: DemoSessionUser = {
-    email: "admin@gmail.com",
-    displayName: "Lake",
-    username: "HoKR2911",
+function getFallbackUser(): AuthSessionUser {
+  return {
+    id: "current-user",
+    email: "",
+    name: "Người chơi",
+    username: "player",
+    elo: DEFAULT_ELO,
+    role: ERoles.GUEST,
+    status: "active",
+    isVerified: false,
   };
-
-  try {
-    const rawUser = localStorage.getItem(USER_STORAGE_KEY);
-    if (!rawUser) return fallbackUser;
-
-    const parsedUser = JSON.parse(rawUser) as DemoSessionUser;
-
-    if (parsedUser.displayName && parsedUser.username && parsedUser.email) {
-      return parsedUser;
-    }
-
-    return fallbackUser;
-  } catch {
-    return fallbackUser;
-  }
-}
-
-function saveDemoUser(user: DemoSessionUser) {
-  localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(user));
-}
-
-function getDemoProfileStats(): PlayerProfileStats {
-  const fallbackProfile: PlayerProfileStats = {
-    elo: 1420,
-    wins: 24,
-    losses: 10,
-    draws: 6,
-  };
-
-  try {
-    const rawProfile = localStorage.getItem(PROFILE_STORAGE_KEY);
-
-    if (!rawProfile) {
-      localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(fallbackProfile));
-      return fallbackProfile;
-    }
-
-    const parsedProfile = JSON.parse(rawProfile) as PlayerProfileStats;
-
-    if (
-      typeof parsedProfile.elo === "number" &&
-      typeof parsedProfile.wins === "number" &&
-      typeof parsedProfile.losses === "number" &&
-      typeof parsedProfile.draws === "number"
-    ) {
-      return parsedProfile;
-    }
-
-    return fallbackProfile;
-  } catch {
-    return fallbackProfile;
-  }
 }
 
 function getAvatarText(displayName: string, username: string) {
@@ -94,26 +46,45 @@ function getAvatarText(displayName: string, username: string) {
   return username.slice(0, 2).toUpperCase();
 }
 
+function getErrorMessage(error: unknown) {
+  if (typeof error === "object" && error !== null && "response" in error) {
+    const response = (error as { response?: { data?: { message?: string; error?: string } } }).response;
+    return response?.data?.message || response?.data?.error;
+  }
+
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  return null;
+}
+
 function PlayerProfile() {
   const navigate = useNavigate();
 
-  const [currentUser, setCurrentUser] = useState<DemoSessionUser>(() =>
-    getDemoUser()
+  const [currentUser, setCurrentUser] = useState<AuthSessionUser>(() =>
+    getCurrentUser() ?? getFallbackUser()
   );
-  const [profileStats] = useState<PlayerProfileStats>(() =>
-    getDemoProfileStats()
-  );
+  const [profileStats] = useState<PlayerProfileStats>(() => ({
+    elo: currentUser.elo ?? DEFAULT_ELO,
+    wins: 0,
+    losses: 0,
+    draws: 0,
+  }));
 
   const [editedDisplayName, setEditedDisplayName] = useState(
-    currentUser.displayName
+    getUserDisplayName(currentUser)
   );
   const [currentPasswordInput, setCurrentPasswordInput] = useState("");
   const [newPasswordInput, setNewPasswordInput] = useState("");
   const [confirmNewPasswordInput, setConfirmNewPasswordInput] = useState("");
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+
+  const displayName = getUserDisplayName(currentUser);
 
   const avatarText = useMemo(() => {
-    return getAvatarText(currentUser.displayName, currentUser.username);
-  }, [currentUser.displayName, currentUser.username]);
+    return getAvatarText(displayName, currentUser.username);
+  }, [displayName, currentUser.username]);
 
   const totalGames = useMemo(() => {
     return profileStats.wins + profileStats.losses + profileStats.draws;
@@ -135,6 +106,8 @@ function PlayerProfile() {
     ];
   }, [profileStats, totalGames, winRate]);
 
+  const hasProfileStats = totalGames > 0 || profileStats.elo > 0;
+
   const handleGoBack = () => {
     navigate("/lobby");
   };
@@ -152,17 +125,18 @@ function PlayerProfile() {
       return;
     }
 
-    const updatedUser: DemoSessionUser = {
+    const updatedUser: AuthSessionUser = {
       ...currentUser,
-      displayName: normalizedDisplayName,
+      name: normalizedDisplayName,
     };
 
+    // Auth branch currently gives the UI user info through the session payload; keep this local copy in sync.
     setCurrentUser(updatedUser);
-    saveDemoUser(updatedUser);
-    alert("Đã cập nhật tên hiển thị.");
+    updateAuthSessionUser(updatedUser);
+    alert("Đã cập nhật tên hiển thị trên phiên hiện tại.");
   };
 
-  const handleUpdatePassword = () => {
+  const handleUpdatePassword = async () => {
     if (
       !currentPasswordInput.trim() ||
       !newPasswordInput.trim() ||
@@ -172,8 +146,8 @@ function PlayerProfile() {
       return;
     }
 
-    if (newPasswordInput.length < 6) {
-      alert("Mật khẩu mới phải có ít nhất 6 ký tự.");
+    if (newPasswordInput.length < 8) {
+      alert("Mật khẩu mới phải có ít nhất 8 ký tự.");
       return;
     }
 
@@ -182,10 +156,24 @@ function PlayerProfile() {
       return;
     }
 
-    alert("Đã cập nhật mật khẩu trên giao diện demo.");
-    setCurrentPasswordInput("");
-    setNewPasswordInput("");
-    setConfirmNewPasswordInput("");
+    setIsChangingPassword(true);
+
+    try {
+      await userChangePassword({
+        currentPassword: currentPasswordInput,
+        newPassword: newPasswordInput,
+        confirmPassword: confirmNewPasswordInput,
+      });
+
+      alert("Đã cập nhật mật khẩu.");
+      setCurrentPasswordInput("");
+      setNewPasswordInput("");
+      setConfirmNewPasswordInput("");
+    } catch (error) {
+      alert(getErrorMessage(error) || "Không thể cập nhật mật khẩu.");
+    } finally {
+      setIsChangingPassword(false);
+    }
   };
 
   return (
@@ -206,7 +194,7 @@ function PlayerProfile() {
 
           <div className="player-profile-main-info">
             <p className="player-profile-kicker">PLAYER PROFILE</p>
-            <h1>{currentUser.displayName}</h1>
+            <h1>{displayName}</h1>
             <p className="player-profile-username">@{currentUser.username}</p>
             <p className="player-profile-elo">
               Elo hiện tại: <strong>{profileStats.elo}</strong>
@@ -219,14 +207,20 @@ function PlayerProfile() {
             <h2>Thống kê thi đấu</h2>
           </div>
 
-          <div className="player-profile-stats-grid">
-            {profileStatCards.map((statCard) => (
-              <div className="player-profile-stat-card" key={statCard.label}>
-                <p className="player-profile-stat-value">{statCard.value}</p>
-                <p className="player-profile-stat-label">{statCard.label}</p>
-              </div>
-            ))}
-          </div>
+          {hasProfileStats ? (
+            <div className="player-profile-stats-grid">
+              {profileStatCards.map((statCard) => (
+                <div className="player-profile-stat-card" key={statCard.label}>
+                  <p className="player-profile-stat-value">{statCard.value}</p>
+                  <p className="player-profile-stat-label">{statCard.label}</p>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="player-profile-empty-state">
+              Chưa có dữ liệu thống kê thi đấu.
+            </div>
+          )}
         </section>
 
         <div className="player-profile-edit-grid">
@@ -291,8 +285,9 @@ function PlayerProfile() {
               type="button"
               className="profile-primary-btn profile-full-btn"
               onClick={handleUpdatePassword}
+              disabled={isChangingPassword}
             >
-              Cập nhật mật khẩu
+              {isChangingPassword ? "Đang cập nhật..." : "Cập nhật mật khẩu"}
             </button>
           </section>
         </div>

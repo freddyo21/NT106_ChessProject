@@ -15,112 +15,14 @@ type LeaderboardPlayer = {
   isCurrentUser?: boolean;
 };
 
-const mockLeaderboardData: LeaderboardPlayer[] = [
-  {
-    id: 1,
-    playerName: "LyNa",
-    elo: 1842,
-    wins: 52,
-    losses: 8,
-    draws: 10,
-    totalMatches: 70,
-    winRate: 74.29,
-    avatarText: "LN",
-  },
-  {
-    id: 2,
-    playerName: "Ngoc",
-    elo: 1796,
-    wins: 46,
-    losses: 12,
-    draws: 8,
-    totalMatches: 66,
-    winRate: 69.7,
-    avatarText: "NG",
-  },
-  {
-    id: 3,
-    playerName: "DuyAnh",
-    elo: 1768,
-    wins: 42,
-    losses: 11,
-    draws: 9,
-    totalMatches: 62,
-    winRate: 67.74,
-    avatarText: "DA",
-  },
-  {
-    id: 4,
-    playerName: "MH",
-    elo: 1715,
-    wins: 39,
-    losses: 15,
-    draws: 6,
-    totalMatches: 60,
-    winRate: 65,
-    avatarText: "MH",
-    isCurrentUser: true,
-  },
-  {
-    id: 5,
-    playerName: "Bao",
-    elo: 1664,
-    wins: 31,
-    losses: 18,
-    draws: 7,
-    totalMatches: 56,
-    winRate: 55.36,
-    avatarText: "BA",
-  },
-  {
-    id: 6,
-    playerName: "Khanh",
-    elo: 1648,
-    wins: 29,
-    losses: 17,
-    draws: 10,
-    totalMatches: 56,
-    winRate: 51.79,
-    avatarText: "KH",
-  },
-  {
-    id: 7,
-    playerName: "Minh",
-    elo: 1599,
-    wins: 24,
-    losses: 20,
-    draws: 8,
-    totalMatches: 52,
-    winRate: 46.15,
-    avatarText: "MI",
-  },
-  {
-    id: 8,
-    playerName: "Hieu",
-    elo: 1540,
-    wins: 20,
-    losses: 23,
-    draws: 9,
-    totalMatches: 52,
-    winRate: 38.46,
-    avatarText: "HI",
-  },
-];
+const leaderboardData: LeaderboardPlayer[] = [];
 
 function LeaderboardPage() {
   const navigate = useNavigate();
-
-  //{giải thích code} Tạm dùng mock data để dựng UI trước.
-  //{giải thích code} Khi nối API hoặc socket, đổi lại thành:
-  //{giải thích code} const [players, setPlayers] = useState<LeaderboardPlayer[]>([]);
-  const [players] = useState<LeaderboardPlayer[]>(mockLeaderboardData);
-
-  //{giải thích code} Dùng để tìm nhanh người chơi khi danh sách dài hơn.
+  const [players] = useState<LeaderboardPlayer[]>(leaderboardData);
   const [searchKeyword, setSearchKeyword] = useState("");
 
   const sortedPlayers = useMemo(() => {
-    //{giải thích code} Leaderboard ưu tiên sort theo ELO giảm dần.
-    //{giải thích code} Nếu ELO bằng nhau thì so tiếp số trận thắng rồi đến win rate.
     return [...players].sort((a, b) => {
       if (b.elo !== a.elo) return b.elo - a.elo;
       if (b.wins !== a.wins) return b.wins - a.wins;
@@ -141,10 +43,11 @@ function LeaderboardPage() {
       <div className="leaderboard-container">
         <div className="leaderboard-header">
           <button
+            type="button"
             className="leaderboard-back-button"
             onClick={() => navigate("/lobby")}
           >
-            ← Quay lại
+            Quay về sảnh
           </button>
 
           <div className="leaderboard-header-text">
@@ -169,6 +72,12 @@ function LeaderboardPage() {
         </div>
 
         <div className="leaderboard-top3">
+          {topThreePlayers.length === 0 && (
+            <div className="leaderboard-empty-state leaderboard-top-empty">
+              Chưa có dữ liệu xếp hạng.
+            </div>
+          )}
+
           {topThreePlayers.map((player, index) => (
             <div
               key={player.id}
@@ -177,11 +86,8 @@ function LeaderboardPage() {
               }`}
             >
               <div className="leaderboard-top-rank">#{index + 1}</div>
-
               <div className="leaderboard-top-avatar">{player.avatarText}</div>
-
               <h3>{player.playerName}</h3>
-
               <p className="leaderboard-top-elo">{player.elo} ELO</p>
 
               <div className="leaderboard-top-stats">
@@ -191,7 +97,8 @@ function LeaderboardPage() {
               </div>
 
               <p className="leaderboard-top-meta">
-                Win rate: {player.winRate.toFixed(2)}% • Tổng trận: {player.totalMatches}
+                Win rate: {player.winRate.toFixed(2)}% • Tổng trận:{" "}
+                {player.totalMatches}
               </p>
             </div>
           ))}
@@ -219,19 +126,13 @@ function LeaderboardPage() {
                   className={player.isCurrentUser ? "current-user-row" : ""}
                 >
                   <td className="rank-cell">#{index + 1}</td>
-
                   <td className="name-cell">
                     <div className="table-player-info">
                       <div className="table-player-avatar">{player.avatarText}</div>
-
                       <span>{player.playerName}</span>
-
-                      {player.isCurrentUser && (
-                        <span className="you-badge">Bạn</span>
-                      )}
+                      {player.isCurrentUser && <span className="you-badge">Bạn</span>}
                     </div>
                   </td>
-
                   <td className="elo-cell">{player.elo}</td>
                   <td>{player.wins}</td>
                   <td>{player.losses}</td>
@@ -242,6 +143,12 @@ function LeaderboardPage() {
               ))}
             </tbody>
           </table>
+
+          {filteredPlayers.length === 0 && (
+            <div className="leaderboard-empty-state">
+              Chưa có người chơi nào trong bảng xếp hạng.
+            </div>
+          )}
         </div>
       </div>
     </div>

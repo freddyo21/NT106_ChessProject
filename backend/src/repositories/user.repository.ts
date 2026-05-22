@@ -1,6 +1,7 @@
 import { IUser, User, UserResponseSchema, UserSchema } from "@zess-online-chess/shared";
 import { pool } from "../config/database.config";
 import { Exception } from "../exceptions";
+import { generateUuidV7 } from "../utils/uuid";
 
 const USER_SELECT_COLUMNS = `
     u."id",
@@ -64,6 +65,7 @@ export const findByUsername = async (username: string) => {
 type CreateUserData = Pick<IUser, "name" | "username" | "email" | "passwordHash">;
 export const create = async (data: Required<CreateUserData>) => {
     const { name, username, email, passwordHash } = data;
+    const id = generateUuidV7();
 
     if (!name || !username || !email || !passwordHash) {
         throw new Exception("Missing required fields", 400);
@@ -72,8 +74,8 @@ export const create = async (data: Required<CreateUserData>) => {
     const user = await pool.query<IUser>(
         `
             WITH "inserted_user" AS (
-                INSERT INTO "users" ("name", "username", "email", "password_hash")
-                VALUES ($1, $2, $3, $4)
+                INSERT INTO "users" ("id", "name", "username", "email", "password_hash", "is_verified")
+                VALUES ($1, $2, $3, $4, $5, true)
                 RETURNING *
             )
             SELECT 
@@ -92,7 +94,7 @@ export const create = async (data: Required<CreateUserData>) => {
             FROM "inserted_user" iu
             JOIN "roles" r ON iu."role_id" = r."id";
         `,
-        [name, username, email, passwordHash]
+        [id, name, username, email, passwordHash]
     ).then(result => result.rows[0] ?? null);
 
     if (user) {

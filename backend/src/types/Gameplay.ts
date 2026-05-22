@@ -2,6 +2,7 @@ import { getGameRoom } from "../websocket/room-management.socket";
 
 export type GameRoom = NonNullable<ReturnType<typeof getGameRoom>>;
 export type RoomPlayer = GameRoom["players"][number];
+export type PromotionPiece = "queen" | "rook" | "bishop" | "knight";
 
 // The following types are used to standardize the payloads and callbacks for game actions.
 export type GameStatePayload = {
@@ -12,6 +13,8 @@ export type GameStatePayload = {
         white: ReturnType<GameRoom["game"]["getKingPosition"]>;
         black: ReturnType<GameRoom["game"]["getKingPosition"]>;
     };
+    gameStatus: ReturnType<GameRoom["game"]["getGameStatus"]>;
+    eloUpdate?: GameRoom["ratedResult"];
 };
 
 // This type is used for the callback response of game actions like "chess_move" and "undo_move". 

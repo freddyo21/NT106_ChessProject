@@ -1,6 +1,6 @@
 import { Request, Response } from "express"
 import * as gameplayService from "../services/gameplay.service";
-import { invitationParametersSchema, successResponseSchema } from "@zess-online-chess/shared";
+import { invitationParametersSchema, SuccessResponseSchema } from "@zess-online-chess/shared";
 
 export const createInvitationCode = async (req: Request, res: Response) => {
     try {
@@ -21,7 +21,8 @@ export const createInvitationCode = async (req: Request, res: Response) => {
 
         const { code, expiresAt } = gameplayService.createInvitationCode(roomId);
 
-        const success = successResponseSchema.safeParse({
+        // Shared package export tên schema dạng PascalCase, dùng đúng tên để backend build không crash.
+        const success = SuccessResponseSchema.safeParse({
             message: "Invitation code created successfully",
             data: {
                 code,

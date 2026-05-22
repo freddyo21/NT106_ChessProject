@@ -1,4 +1,4 @@
-import { IUser, User, UserResponseSchema, UserSchema } from "@zess-online-chess/shared";
+import { DEFAULT_ELO, IUser, User, UserResponseSchema, UserSchema } from "@zess-online-chess/shared";
 import { pool } from "../config/database.config";
 import { Exception } from "../exceptions";
 
@@ -72,8 +72,9 @@ export const create = async (data: Required<CreateUserData>) => {
     const user = await pool.query<IUser>(
         `
             WITH "inserted_user" AS (
-                INSERT INTO "users" ("name", "username", "email", "password_hash")
-                VALUES ($1, $2, $3, $4)
+                -- New accounts always start from shared DEFAULT_ELO so DB rows match frontend rank display.
+                INSERT INTO "users" ("name", "username", "email", "password_hash", "elo")
+                VALUES ($1, $2, $3, $4, $5)
                 RETURNING *
             )
             SELECT 
@@ -92,7 +93,7 @@ export const create = async (data: Required<CreateUserData>) => {
             FROM "inserted_user" iu
             JOIN "roles" r ON iu."role_id" = r."id";
         `,
-        [name, username, email, passwordHash]
+        [name, username, email, passwordHash, DEFAULT_ELO]
     ).then(result => result.rows[0] ?? null);
 
     if (user) {
@@ -141,6 +142,27 @@ export const update = async (id: string, data: Partial<User>) => {
     `;
 
     const result = await pool.query<IUser>(query, values);
+    const user = result.rows[0] ?? null;
+    if (!user) return null;
+
+    return UserResponseSchema.parse(user);
+};
+
+export const updateElo = async (id: string, elo: number) => {
+    // Elo update is isolated here so game-finalization code does not hand-build SQL.
+    const result = await pool.query<IUser>(
+        `
+            UPDATE "users" u
+            SET "elo" = $2,
+                "updated_at" = NOW()
+            FROM "roles" r
+            WHERE u."id" = $1
+              AND u."role_id" = r."id"
+            RETURNING ${USER_SELECT_COLUMNS}, r."name" AS "role"
+        `,
+        [id, elo]
+    );
+
     const user = result.rows[0] ?? null;
     if (!user) return null;
 

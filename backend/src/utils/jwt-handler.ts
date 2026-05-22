@@ -50,7 +50,9 @@ export const generateToken = (user: UserResponse, expiresIn: ms.StringValue = "1
         aud: process.env.JWT_ISSUER,    // Audience of the token
         iat: issuedAt,
         email: user.email,
+        name: user.name,
         username: user.username,
+        elo: user.elo,
         role: user.role,
         status: user.status
     };

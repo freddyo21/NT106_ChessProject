@@ -17,7 +17,11 @@ export const authMiddleware = (req: JwtRequest, next: NextFunction) => {
 
     try {
         const payload = validateToken(token);
-        req.user = payload;
+
+        req.user = {
+            ...payload,
+            id: payload.sub,
+        };
     } catch (error) {
         return next(error);
     }

@@ -1,4 +1,4 @@
-import { pool } from "../config/db";
+import { pool } from "../config/database.config";
 
 //----------Types--------
 export type GameResult = "white_win" | "black_win" | "draw";

@@ -1,5 +1,5 @@
 import * as gameRepository from "../repositories/game.repository";
-import { pool } from "../config/db";
+import { pool } from "../config/database.config";
 
 //-----Types---------
 export interface MatchHistoryItem {

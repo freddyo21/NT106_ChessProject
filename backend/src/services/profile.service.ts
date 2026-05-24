@@ -1,4 +1,4 @@
-import { pool } from "../config/db";
+import { pool } from "../config/database.config";
 import * as gameRepository from "../repositories/game.repository";
 import { getPlayerStats } from "./match-history.service";
 import { Exception } from "../exceptions";

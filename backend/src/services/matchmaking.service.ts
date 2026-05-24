@@ -1,4 +1,4 @@
-import { pool } from "../config/db";
+import { pool } from "../config/database.config";
 import { Logger } from "../utils/Logger";
 import { Exception } from "../exceptions";
 import * as gameRepository from "../repositories/game.repository";

@@ -14,11 +14,7 @@ export class Exception extends Error {
 
     constructor(message: string, statusCode = 500, details: any = null) {
         super(message);
-<<<<<<< HEAD:backend/zess-online-chess-backend/src/exceptions/Exception.ts
-
-=======
         this.name = "Exception";
->>>>>>> origin/develop:backend/src/exceptions/Exception.ts
         this.statusCode = statusCode;
         this.details = details;
         this.isOperational = true;

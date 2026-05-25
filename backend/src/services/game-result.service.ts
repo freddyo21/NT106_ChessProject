@@ -1,7 +1,7 @@
 import * as gameRepository from "../repositories/game.repository";
 import { Logger } from "../utils/Logger";
 
-const logger = new Logger("game-service");
+const logger = new Logger("game-result-service");
 
 //-------Types----------
 

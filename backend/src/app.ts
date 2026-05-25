@@ -1,5 +1,4 @@
 import "dotenv/config";
-
 import express, { Application, NextFunction, Request, Response } from "express";
 import cors from "cors";
 import compression from "compression";
@@ -10,6 +9,7 @@ import helmet from "helmet";
 import { socketInitialize } from "./websocket";
 import { createServer } from "http";
 import { Server as HttpServer } from "http";
+import { connectRedis, disconnectRedis } from "./config/redis.config";
 
 // Store server reference for graceful shutdown
 let httpServer: HttpServer | null = null;
@@ -21,6 +21,10 @@ async function initializeApp() {
     setupRoutes(app);
     setupErrorHandling(app);
 
+
+    if (process.env.REDIS_ENABLED === "true") {
+        await connectRedis();
+    }
     httpServer = createServer(app);
     await socketInitialize(httpServer);
 
@@ -42,16 +46,16 @@ initializeApp().catch(err => {
 });
 
 /**
- * ═══════════════════════════════════════════════════════════
+ * ----------------------------------------------------------
  * GRACEFUL SHUTDOWN HANDLER
- * ═══════════════════════════════════════════════════════════
+ * ----------------------------------------------------------
  */
 function setupGracefulShutdown() {
     const signals = ["SIGTERM", "SIGINT"];
 
     signals.forEach(signal => {
         process.on(signal, async () => {
-            console.log(`\n📛 Received ${signal}, starting graceful shutdown...`);
+            console.log(`\nReceived ${signal}, starting graceful shutdown...`);
 
             if (!httpServer) {
                 console.log("Server not initialized, exiting immediately");
@@ -60,32 +64,32 @@ function setupGracefulShutdown() {
 
             // 1. Stop accepting new connections
             httpServer.close(() => {
-                console.log("✅ HTTP server closed, no new connections accepted");
+                console.log("HTTP server closed, no new connections accepted");
             });
 
             // 2. Graceful disconnect timeout (30 seconds)
             const shutdownTimeout = setTimeout(() => {
-                console.error("❌ Graceful shutdown timeout exceeded, forcing exit...");
+                console.error("Graceful shutdown timeout exceeded, forcing exit...");
                 process.exit(1);
             }, 30000);
 
             // 3. Wait for all connections to close
             // Socket.io will handle its own connection cleanup
-            httpServer.once("close", () => {
+            httpServer.once("close", async () => {
                 clearTimeout(shutdownTimeout);
-                console.log("✅ All connections closed, shutting down gracefully");
-                
-                // TODO: Add your cleanup here
-                // await database.disconnect();
-                // await redis.disconnect();
-                
+                console.log("All connections closed, shutting down gracefully");
+
+                if (process.env.REDIS_ENABLED === "true") {
+                    await disconnectRedis();
+                }
+
                 process.exit(0);
             });
 
             // 4. Force close connections that don't close in time
             setTimeout(() => {
                 if (httpServer && httpServer.listening) {
-                    console.warn("⚠️  Some connections still open, destroying them...");
+                    console.warn("Some connections still open, destroying them...");
                     httpServer.closeAllConnections?.();
                 }
             }, 25000);

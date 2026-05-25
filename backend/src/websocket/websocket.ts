@@ -4,6 +4,8 @@ import { roomManagementSocket, gameplaySocket, chatSocket } from "./";
 import { Logger } from "../utils/Logger";
 import { jwtVerify } from "../auth/jwt-verify";
 import { JwtInvalidException } from "../exceptions";
+import { createAdapter } from "@socket.io/redis-adapter";
+import { createRedisPubSubClients } from "../config/redis.config";
 
 // Track disconnect timeouts to clean up on reconnect
 const disconnectTimeouts = new Map<string, NodeJS.Timeout>();
@@ -17,6 +19,12 @@ export const socketInitialize = async (httpServer: HttpServer) => {
     });
 
     const logger = new Logger("socket");
+
+    if (process.env.REDIS_ENABLED === "true") {
+        const { pubClient, subClient } = await createRedisPubSubClients();
+        io.adapter(createAdapter(pubClient, subClient));
+        logger.log("Socket.IO Redis adapter enabled");
+    }
 
     io.use((socket, next) => {
         const token = socket.handshake.auth?.token;

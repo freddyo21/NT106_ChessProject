@@ -10,7 +10,7 @@ type ServerToClientEvents = {
   "presence:user_offline": (payload: { userId: string; timestamp: string }) => void;
   "lobby:joined": (payload: { roomId: string }) => void;
   "lobby:message": (payload: LobbyMessagePayload) => void;
-  "receive_message": (payload: RoomMessagePayload) => void;
+  "chat": (payload: RoomMessagePayload) => void;
   "rooms:list": (payload: SocketRoomListItem[]) => void;
   "rooms:changed": (payload: SocketRoomListItem[]) => void;
   "room_joined": (payload: {
@@ -36,11 +36,8 @@ type ClientToServerEvents = {
     callback?: (response: { ok: boolean; message?: string }) => void
   ) => void;
   "rooms:list": (callback?: (rooms: SocketRoomListItem[]) => void) => void;
-  "send_message": (payload: { roomId: string; message: string }) => void;
-  "join_room": (payload: {
-    roomId: string;
-    preferredColor?: "white" | "black";
-  }) => void;
+  "chat": (payload: { roomId: string; message: string }) => void;
+  "join_room": (roomId: string) => void;
   "chess_move": (
     payload: {
       roomId: string;

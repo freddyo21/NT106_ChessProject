@@ -886,7 +886,7 @@ function ChessBoardUI() {
     socket.on("room_joined", handleRoomJoined);
     socket.on("chess_move", handleChessMove);
     socket.on("game_error", handleGameError);
-    socket.on("receive_message", handleReceiveMessage);
+    socket.on("chat", handleReceiveMessage);
     socket.on("disconnect", handleDisconnect);
 
     setConnectionStatus(socket.connected ? "connected" : "connecting");
@@ -894,19 +894,16 @@ function ChessBoardUI() {
       socket.connect();
     }
 
-    socket.emit("join_room", {
-      roomId: socketRoomId,
-      preferredColor: socketPlayerColor,
-    });
+    socket.emit("join_room", socketRoomId);
 
     return () => {
       socket.off("room_joined", handleRoomJoined);
       socket.off("chess_move", handleChessMove);
       socket.off("game_error", handleGameError);
-      socket.off("receive_message", handleReceiveMessage);
+      socket.off("chat", handleReceiveMessage);
       socket.off("disconnect", handleDisconnect);
     };
-  }, [applySocketGameState, currentUser.username, socketPlayerColor, socketRoomId]);
+  }, [applySocketGameState, currentUser.username, socketRoomId]);
 
   const handleSendGameChatMessage = (message: string) => {
     const socket = getAppSocket();
@@ -916,7 +913,7 @@ function ChessBoardUI() {
     }
 
     // Chat trong ván dùng roomId game hiện tại, backend sẽ broadcast lại cho cả hai người chơi.
-    socket.emit("send_message", {
+    socket.emit("chat", {
       roomId: socketRoomId,
       message,
     });

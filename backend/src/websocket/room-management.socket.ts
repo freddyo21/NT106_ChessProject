@@ -29,32 +29,20 @@ const gameRooms: Map<string, GameRoom> = new Map<string, GameRoom>();
 const userToRoom = new Map<string, string>();
 const disconnectTimeouts = new Map<string, NodeJS.Timeout>();
 
-type JoinRoomPayload =
-    | string
-    | {
-        roomId?: string;
-        preferredColor?: PlayerColor;
-    };
+type JoinRoomPayload = string;
 
-const getAvailableColor = (players: RoomPlayer[], preferredColor?: PlayerColor): PlayerColor | null => {
+const getAvailableColor = (players: RoomPlayer[]): PlayerColor | null => {
     const hasWhite = players.some((player) => player.color === "white");
     const hasBlack = players.some((player) => player.color === "black");
 
-    if (preferredColor === "white" && !hasWhite) return "white";
-    if (preferredColor === "black" && !hasBlack) return "black";
     if (!hasWhite) return "white";
     if (!hasBlack) return "black";
     return null;
 };
 
 const parseJoinRoomPayload = (payload: JoinRoomPayload) => {
-    if (typeof payload === "string") {
-        return { roomId: payload };
-    }
-
     return {
-        roomId: payload?.roomId,
-        preferredColor: payload?.preferredColor,
+        roomId: typeof payload === "string" ? payload : payload?.roomId,
     };
 };
 
@@ -102,7 +90,7 @@ export function roomManagementSocket(socket: Socket) {
     };
 
     socket.on("join_room", (payload: JoinRoomPayload) => {
-        const { roomId, preferredColor } = parseJoinRoomPayload(payload);
+        const { roomId } = parseJoinRoomPayload(payload);
 
         if (!roomId) {
             return socket.emit("room_error", "Room ID is required to join a room.");
@@ -133,7 +121,7 @@ export function roomManagementSocket(socket: Socket) {
         const isNewPlayer = !existingPlayer;
 
         if (isNewPlayer) {
-            const assignedColor = getAvailableColor(room.players, preferredColor);
+            const assignedColor = getAvailableColor(room.players);
             if (!assignedColor) {
                 return socket.emit("room_error", "Room is full");
             }

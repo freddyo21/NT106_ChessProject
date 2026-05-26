@@ -4,7 +4,7 @@ import { createSocketRateLimiter } from "../middlewares/socket.limiter";
 
 const chatRateLimiter = createSocketRateLimiter({
     rules: {
-        send_message: {
+        chat: {
             windowMs: 5_000,
             max: 5,
             blockDurationMs: 15_000
@@ -33,7 +33,7 @@ export const chatSocket = async (socket: Socket) => {
     socket.use(chatRateLimiter.middleware(socket));
     const logger = new Logger("chat-socket");
 
-    socket.on("send_message", async (data) => {
+    socket.on("chat", async (data) => {
         try {
             if (!data || typeof data !== "object") return;
 
@@ -51,7 +51,7 @@ export const chatSocket = async (socket: Socket) => {
                 CHAT_MESSAGE | Room: ${roomId} | User: ${username} | Content: ${message}
             `);
 
-            socket.nsp.to(roomId).emit("receive_message", {
+            socket.nsp.to(roomId).emit("chat", {
                 id: `${Date.now()}-${socket.id}`,
                 userId: socket.data.user?.id,
                 username,

@@ -82,10 +82,7 @@ function QuickMatchPage() {
       setMatchedPayload(payload);
       setStatus("matched");
       // Join the game room immediately so board state exists before navigating to /board.
-      socket.emit("join_room", {
-        roomId: payload.roomId,
-        preferredColor: payload.color,
-      });
+      socket.emit("join_room", payload.roomId);
 
       if (matchStartTimeoutRef.current) {
         window.clearTimeout(matchStartTimeoutRef.current);

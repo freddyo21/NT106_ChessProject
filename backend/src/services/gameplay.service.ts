@@ -15,18 +15,18 @@ type InviteCodeValidationResult = {
     error?: string;
 };
 
-const memoryInviteCodes = new Map<string, InviteCodeRecord>();
+const inviteCodes = new Map<string, InviteCodeRecord>();
 
 const isRedisEnabled = () => process.env.REDIS_ENABLED === "true";
 
 const getInviteCodeKey = (code: string) => `invite:code:${code}`;
 
-const cleanupExpiredMemoryInviteCodes = () => {
+const cleanupExpiredInviteCodes = () => {
     const now = Date.now();
 
-    for (const [code, record] of memoryInviteCodes.entries()) {
+    for (const [code, record] of inviteCodes.entries()) {
         if (record.expiresAt <= now) {
-            memoryInviteCodes.delete(code);
+            inviteCodes.delete(code);
         }
     }
 };
@@ -36,7 +36,8 @@ const generateInviteCode = () => {
     let code = "";
 
     for (const byte of bytes) {
-        code += INVITE_CODE_ALPHABET.charAt(byte % INVITE_CODE_ALPHABET.length);
+        const index = byte % INVITE_CODE_ALPHABET.length;
+        code += INVITE_CODE_ALPHABET.charAt(index);
     }
 
     return code;
@@ -47,6 +48,8 @@ const normalizeInviteCode = (code: string) => {
 };
 
 export const createInvitationCode = async (roomId: string) => {
+    cleanupExpiredInviteCodes();
+  
     const expiresAt = Date.now() + INVITE_CODE_TTL_MS;
     let code = generateInviteCode();
     let attempts = 0;
@@ -74,12 +77,12 @@ export const createInvitationCode = async (roomId: string) => {
 
     cleanupExpiredMemoryInviteCodes();
 
-    while (memoryInviteCodes.has(code) && attempts < 5) {
+    while (inviteCodes.has(code) && attempts < 5) {
         code = generateInviteCode();
         attempts += 1;
     }
 
-    memoryInviteCodes.set(code, { roomId, expiresAt });
+    inviteCodes.set(code, { roomId, expiresAt });
 
     return { code, expiresAt };
 };
@@ -94,33 +97,56 @@ export const verifyInvitationCode = async (
         const rawInvitation = await redisClient.get(getInviteCodeKey(normalizedCode));
 
         if (!rawInvitation) {
-            return { isValid: false, error: "Invalid invitation code" };
+            return {
+                isValid: false,
+                error: "Invalid invitation code"
+            };
         }
 
         const invitation = JSON.parse(rawInvitation) as InviteCodeRecord;
 
         if (invitation.roomId !== roomId) {
-            return { isValid: false, error: "Invitation code does not match this room" };
+            return {
+                isValid: false,
+                error: "Invitation code does not match this room"
+            };
+        }
+
+        if (invitation.expiresAt <= Date.now()) {
+            await redisClient.del(getInviteCodeKey(normalizedCode));
+            return {
+                isValid: false,
+                error: "Invitation code has expired (5 minutes)"
+            };
         }
 
         return { isValid: true };
     }
 
-    cleanupExpiredMemoryInviteCodes();
+    cleanupExpiredInviteCodes();
 
-    const invitation = memoryInviteCodes.get(normalizedCode);
+    const invitation = inviteCodes.get(normalizedCode);
 
     if (!invitation) {
-        return { isValid: false, error: "Invalid invitation code" };
+        return {
+            isValid: false,
+            error: "Invalid invitation code"
+        };
     }
 
     if (invitation.expiresAt <= Date.now()) {
-        memoryInviteCodes.delete(normalizedCode);
-        return { isValid: false, error: "Invitation code has expired (5 minutes)" };
+        inviteCodes.delete(normalizedCode);
+        return {
+            isValid: false,
+            error: "Invitation code has expired (5 minutes)"
+        };
     }
 
     if (invitation.roomId !== roomId) {
-        return { isValid: false, error: "Invitation code does not match this room" };
+        return {
+            isValid: false,
+            error: "Invitation code does not match this room"
+        };
     }
 
     return { isValid: true };

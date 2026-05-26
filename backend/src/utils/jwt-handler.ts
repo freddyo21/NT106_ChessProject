@@ -6,6 +6,13 @@ import ms from "ms";
 
 const logger = new Logger("jwt");
 
+type RefreshTokenRecord = {
+    userId: string;
+    expiresAt: number;
+};
+
+const refreshTokenStore = new Map<string, RefreshTokenRecord>();
+
 const getSecretKey = (): string => {
     const key = process.env.JWT_SECRET_KEY; // Do not provide a default value for the secret key, as it is critical for security.
     const hasKey = key && key.trim().length > 0; // Check if the key exists and is not just whitespace.
@@ -17,7 +24,24 @@ const getSecretKey = (): string => {
     return key;
 };
 
-export const generateToken = (user: UserResponse, expiresIn: ms.StringValue = "1h") => {
+// Cần bỏ sau khi đã có Redis để blacklist refresh token
+const cleanupExpiredRefreshTokens = () => {
+    const now = Date.now();
+    for (const [token, record] of refreshTokenStore.entries()) {
+        if (record.expiresAt <= now) {
+            refreshTokenStore.delete(token);
+        }
+    }
+};
+
+const generateRefreshTokenString = (): string => {
+    const randomBytes = crypto.getRandomValues(new Uint8Array(32));
+    return Array.from(randomBytes)
+        .map((byte) => byte.toString(16).padStart(2, "0"))
+        .join("");
+};
+
+export const generateToken = (user: UserResponse, expiresIn: ms.StringValue = "15m") => {
     const issuedAt = Math.floor(Date.now() / 1000); // Current time in seconds since the epoch
 
     const payload: ITokenPayload = {
@@ -27,7 +51,7 @@ export const generateToken = (user: UserResponse, expiresIn: ms.StringValue = "1
         iat: issuedAt,
         email: user.email,
         username: user.username,
-        role: user.role.name,
+        role: user.role,
         status: user.status
     };
 
@@ -36,10 +60,44 @@ export const generateToken = (user: UserResponse, expiresIn: ms.StringValue = "1
         getSecretKey(),
         {
             algorithm: "HS512" as const,
-            issuer: process.env.JWT_ISSUER,
             expiresIn
         }
     );
+};
+
+export const generateRefreshToken = (userId: string, expiresIn: ms.StringValue = "7d") => {
+    cleanupExpiredRefreshTokens();
+
+    const refreshTokenString = generateRefreshTokenString();
+    const expiresAtMs = Date.now() + ms(expiresIn);
+
+    refreshTokenStore.set(refreshTokenString, {
+        userId,
+        expiresAt: expiresAtMs,
+    });
+
+    return refreshTokenString;
+};
+
+export const verifyRefreshToken = (refreshToken: string): { userId: string } | null => {
+    cleanupExpiredRefreshTokens();
+
+    const record = refreshTokenStore.get(refreshToken);
+
+    if (!record) {
+        return null;
+    }
+
+    if (record.expiresAt <= Date.now()) {
+        refreshTokenStore.delete(refreshToken);
+        return null;
+    }
+
+    return { userId: record.userId };
+};
+
+export const revokeRefreshToken = (refreshToken: string) => {
+    refreshTokenStore.delete(refreshToken);
 };
 
 export const validateToken = (token: string) => {

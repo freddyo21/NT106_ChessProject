@@ -11,7 +11,6 @@ import { createServer } from "http";
 import { Server as HttpServer } from "http";
 import { connectRedis, disconnectRedis } from "./config/redis.config";
 
-// Store server reference for graceful shutdown
 let httpServer: HttpServer | null = null;
 
 async function initializeApp() {
@@ -33,7 +32,12 @@ async function initializeApp() {
         httpServer!.listen(PORT, () => {
             console.log(`Zess Chess System is running on port ${PORT}`);
             resolve();
-        }).on("error", (err) => {
+        }).on("error", (err: any) => {
+            if (err.code === "EADDRINUSE") {
+                console.error(`[FATAL] Port ${PORT} is already in use!`);
+                console.error("Run 'taskkill /F /IM node.exe /T' to free up the port.");
+                process.exit(1);
+            }
             console.error("Failed to start server:", err);
             reject(err);
         });
@@ -62,18 +66,18 @@ function setupGracefulShutdown() {
                 process.exit(0);
             }
 
-            // 1. Stop accepting new connections
+            // Stop accepting new connections
             httpServer.close(() => {
                 console.log("HTTP server closed, no new connections accepted");
             });
 
-            // 2. Graceful disconnect timeout (30 seconds)
+            // Graceful disconnect timeout (30 seconds)
             const shutdownTimeout = setTimeout(() => {
                 console.error("Graceful shutdown timeout exceeded, forcing exit...");
                 process.exit(1);
             }, 30000);
 
-            // 3. Wait for all connections to close
+            // Wait for all connections to close
             // Socket.io will handle its own connection cleanup
             httpServer.once("close", async () => {
                 clearTimeout(shutdownTimeout);
@@ -82,11 +86,14 @@ function setupGracefulShutdown() {
                 if (process.env.REDIS_ENABLED === "true") {
                     await disconnectRedis();
                 }
+                // TODO: Add your cleanup here
+                // await database.disconnect();
+                // await redis.disconnect();
 
                 process.exit(0);
             });
 
-            // 4. Force close connections that don't close in time
+            // Force close connections that don't close in time
             setTimeout(() => {
                 if (httpServer && httpServer.listening) {
                     console.warn("Some connections still open, destroying them...");

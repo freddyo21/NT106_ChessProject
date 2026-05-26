@@ -1,0 +1,424 @@
+* {
+  box-sizing: border-box;
+}
+
+/*{Khung nền tổng của màn chess}*/
+.chess-app {
+  min-height: 100vh;
+  padding: 24px;
+  background: transparent;
+  color: #eef4ff;
+}
+
+/*{Ẩn dòng chữ nhỏ trong GameStatusUI chỉ ở màn ChessBoard}*/
+.chess-app .game-status-container {
+  min-height: unset;
+}
+
+.chess-app .game-status-content h3 {
+  margin: 0;
+}
+
+.chess-app .game-status-content p {
+  display: none;
+}
+
+/*{Chia layout thành khu bàn cờ bên trái và sidebar bên phải}*/
+.chess-shell {
+  max-width: 1320px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: minmax(620px, 760px) minmax(320px, 380px);
+  gap: 24px;
+  align-items: start;
+}
+
+/*{Cột trái chứa player info + status + board}*/
+.chess-main {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/*{Vùng chứa board để căn giữa}*/
+.board-section {
+  display: flex;
+  justify-content: center;
+}
+
+/*{Khung ngoài của bàn cờ}*/
+.board-frame {
+  padding: 16px;
+  border-radius: 24px;
+  background: rgba(10, 18, 34, 0.72);
+  border: 1px solid rgba(185, 210, 236, 0.12);
+  box-shadow:
+    0 18px 40px rgba(0, 0, 0, 0.3),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(10px);
+}
+
+/*{Lưới bàn cờ 8x8}*/
+.board-grid {
+  display: grid;
+  grid-template-columns: repeat(8, 84px);
+  grid-template-rows: repeat(8, 84px);
+  border-radius: 12px;
+  overflow: hidden;
+  border: 2px solid rgba(180, 205, 235, 0.16);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.04),
+    0 14px 28px rgba(0, 0, 0, 0.28);
+}
+
+/*{Từng ô trên bàn cờ}*/
+.square {
+  width: 84px;
+  height: 84px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  user-select: none;
+  transition:
+    transform 0.14s ease,
+    filter 0.14s ease,
+    box-shadow 0.14s ease;
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(193, 214, 236, 0.08);
+}
+
+.square:hover {
+  filter: brightness(1.06);
+}
+
+/*{Ô sáng}*/
+.light {
+  background:
+    linear-gradient(145deg, rgba(132, 148, 171, 0.98), rgba(97, 112, 137, 0.98));
+}
+
+/*{Ô tối}*/
+.dark {
+  background:
+    linear-gradient(145deg, rgba(34, 48, 75, 0.98), rgba(18, 28, 47, 0.98));
+}
+
+/*{Ô đang được chọn}*/
+.selected {
+  box-shadow:
+    inset 0 0 0 3px rgba(201, 225, 255, 0.78),
+    inset 0 0 18px rgba(255, 255, 255, 0.08);
+  z-index: 2;
+}
+
+/*{Số hàng nhỏ nằm ở mép trái theo quy tắc bàn cờ}*/
+.rank-label {
+  position: absolute;
+  top: 6px;
+  left: 7px;
+  font-size: 14px;
+  font-weight: 800;
+  color: #92ad4b;
+  opacity: 0.96;
+  pointer-events: none;
+  user-select: none;
+  z-index: 3;
+}
+/*{Chữ cột a-b-c-d-e-f-g-h ở mép dưới của bàn cờ}*/
+.file-label {
+  position: absolute;
+  right: 7px;
+  bottom: 6px;
+  font-size: 14px;
+  font-weight: 800;
+  color: #92ad4b;
+  opacity: 0.96;
+  pointer-events: none;
+  user-select: none;
+  z-index: 3;
+}
+/*{Ảnh quân cờ PNG}*/
+.piece-image {
+  width: 78%;
+  height: 78%;
+  object-fit: contain;
+  pointer-events: none;
+  user-select: none;
+  filter: drop-shadow(0 4px 5px rgba(0, 0, 0, 0.32));
+}
+
+/*{Sidebar bên phải}*/
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/*{Panel chung}*/
+.panel {
+  border-radius: 18px;
+  padding: 18px;
+  background: rgba(10, 18, 34, 0.72);
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.22);
+  backdrop-filter: blur(10px);
+}
+
+.panel h3 {
+  margin: 0 0 14px;
+  font-size: 20px;
+  color: #ffffff;
+}
+
+/*{Danh sách trạng thái}*/
+.status-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.status-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  color: #d7e3f5;
+  font-size: 15px;
+}
+
+.status-row strong {
+  color: #ffffff;
+  text-align: right;
+  word-break: break-word;
+}
+
+/*{Khối hiển thị quân bị ăn}*/
+.captured-section {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.captured-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.captured-label {
+  color: #d7e3f5;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.captured-list {
+  min-height: 38px;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.captured-piece-image {
+  width: 30px;
+  height: 30px;
+  object-fit: contain;
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.25));
+}
+
+.captured-empty {
+  color: #9fb3d1;
+  font-size: 14px;
+}
+
+/*{Header panel}*/
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.panel-header span {
+  color: #9fb3d1;
+  font-size: 13px;
+}
+
+/*{Khung bảng lịch sử nước đi}*/
+.move-table {
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid rgba(148, 163, 184, 0.12);
+}
+
+/*{Header và hàng của bảng move}*/
+.move-head,
+.move-row {
+  display: grid;
+  grid-template-columns: 56px 1fr 1fr;
+}
+
+.move-head {
+  background: rgba(255, 255, 255, 0.05);
+  color: #9fb3d1;
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.move-row {
+  color: #eef4ff;
+  border-top: 1px solid rgba(148, 163, 184, 0.08);
+}
+
+.move-head span,
+.move-row span {
+  padding: 10px 12px;
+}
+
+/*{Nút notation có thể bấm để nhảy đến vị trí tương ứng}*/
+.move-notation-btn {
+  border: none;
+  background: transparent;
+  color: #f8fafc;
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+  padding: 0;
+  text-align: left;
+}
+
+.move-notation-btn:hover {
+  color: #93c5fd;
+}
+
+.move-notation-btn.active {
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+}
+
+/*{Text khi chưa có lịch sử}*/
+.empty-panel-text {
+  color: #9fb3d1;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+/*{Cụm nút điều hướng lịch sử}*/
+.replay-controls {
+  margin-top: 14px;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+
+/*{Nút điều hướng lịch sử}*/
+.replay-btn {
+  height: 52px;
+  border: none;
+  border-radius: 14px;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.08),
+    rgba(255, 255, 255, 0.04)
+  );
+  color: #f8fafc;
+  font-size: 24px;
+  font-weight: 700;
+  cursor: pointer;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+  transition: 0.2s ease;
+}
+
+.replay-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.12),
+    rgba(255, 255, 255, 0.06)
+  );
+}
+
+.replay-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/*{Lưới các nút thao tác nhanh}*/
+.action-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+/*{Nút phụ}*/
+.ghost-btn {
+  border: none;
+  border-radius: 12px;
+  padding: 12px 14px;
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+  transition: 0.2s ease;
+  background: rgba(255, 255, 255, 0.06);
+  color: #d7e3f5;
+  border: 1px solid rgba(148, 163, 184, 0.12);
+}
+
+.ghost-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/*{Responsive}*/
+@media (max-width: 768px) {
+  .chess-app {
+    padding: 16px;
+  }
+
+  .board-grid {
+    grid-template-columns: repeat(8, 60px);
+    grid-template-rows: repeat(8, 60px);
+  }
+
+  .square {
+    width: 60px;
+    height: 60px;
+  }
+
+  .piece-image {
+    width: 76%;
+    height: 76%;
+  }
+
+  .rank-label {
+    font-size: 11px;
+    top: 4px;
+    left: 5px;
+  }
+
+  .file-label {
+    font-size: 11px;
+    right: 5px;
+    bottom: 4px;
+  }
+
+  .captured-piece-image {
+    width: 24px;
+    height: 24px;
+  }
+
+  .action-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .replay-controls {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .status-row {
+    font-size: 14px;
+  }
+}

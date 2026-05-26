@@ -1,27 +1,43 @@
-import { IUser, User, UserSchema } from "@zess-online-chess/shared";
+import { IUser, User, UserResponseSchema, UserSchema } from "@zess-online-chess/shared";
 import { pool } from "../config/database.config";
 import { Exception } from "../exceptions";
+import { generateUuidV7 } from "../utils/uuid";
 
 const USER_SELECT_COLUMNS = `
-    id,
-    name,
-    email,
-    username,
-    password_hash AS "passwordHash",
-    elo,
-    role,
-    status,
-    is_verified AS "isVerified",
-    created_at AS "createdAt",
-    updated_at AS "updatedAt",
-    last_login AS "lastLogin"
+    u."id",
+    u."name",
+    u."email",
+    u."username",
+    u."password_hash" AS "passwordHash",
+    u."elo",
+    u."status",
+    u."is_verified" AS "isVerified",
+    u."created_at" AS "createdAt",
+    u."updated_at" AS "updatedAt",
+    u."last_login" AS "lastLogin"
 `;
+
+export const findById = async (id: string) => {
+    const query = `
+        SELECT ${USER_SELECT_COLUMNS}, r.name AS role
+        FROM users u
+        JOIN roles r ON u.role_id = r.id
+        WHERE u.id = $1
+        LIMIT 1
+    `;
+    const result = await pool.query<IUser>(query, [id]);
+    const user = result.rows[0] ?? null;
+    if (!user) return null;
+
+    return UserSchema.parse(user);
+};
 
 export const findByEmail = async (email: string) => {
     const query = `
-        SELECT ${USER_SELECT_COLUMNS}
-        FROM users
-        WHERE email = $1
+        SELECT ${USER_SELECT_COLUMNS}, r.name AS role
+        FROM "users" u
+        JOIN "roles" r ON u.role_id = r.id
+        WHERE u.email = $1
         LIMIT 1
     `;
     const result = await pool.query<IUser>(query, [email]);
@@ -31,27 +47,65 @@ export const findByEmail = async (email: string) => {
     return UserSchema.parse(user);
 };
 
+export const findByUsername = async (username: string) => {
+    const query = `
+        SELECT ${USER_SELECT_COLUMNS}, r.name AS role
+        FROM "users" u
+        JOIN "roles" r ON u.role_id = r.id
+        WHERE u.username = $1
+        LIMIT 1
+    `;
+    const result = await pool.query<IUser>(query, [username]);
+    const user = result.rows[0] ?? null;
+    if (!user) return null;
+
+    return UserSchema.parse(user);
+};
+
 type CreateUserData = Pick<IUser, "name" | "username" | "email" | "passwordHash">;
 export const create = async (data: Required<CreateUserData>) => {
     const { name, username, email, passwordHash } = data;
+    const id = generateUuidV7();
 
     if (!name || !username || !email || !passwordHash) {
         throw new Exception("Missing required fields", 400);
     }
 
-    const result = await pool.query<IUser>(
+    const user = await pool.query<IUser>(
         `
-        INSERT INTO users (name, username, email, password_hash)
-        VALUES ($1, $2, $3, $4)
-        RETURNING ${USER_SELECT_COLUMNS}
+            WITH "inserted_user" AS (
+                INSERT INTO "users" ("id", "name", "username", "email", "password_hash", "is_verified")
+                VALUES ($1, $2, $3, $4, $5, true)
+                RETURNING *
+            )
+            SELECT 
+                iu."id",
+                iu."name",
+                iu."email",
+                iu."username",
+                iu."password_hash" AS "passwordHash",
+                iu."elo",
+                r."name" AS "role",
+                iu."status",
+                iu."is_verified" AS "isVerified",
+                iu."created_at" AS "createdAt",
+                iu."updated_at" AS "updatedAt",
+                iu."last_login" AS "lastLogin"
+            FROM "inserted_user" iu
+            JOIN "roles" r ON iu."role_id" = r."id";
         `,
-        [name, username, email, passwordHash]
-    );
+        [id, name, username, email, passwordHash]
+    ).then(result => result.rows[0] ?? null);
 
-    return UserSchema.parse(result.rows[0]);
+    if (user) {
+        const { passwordHash, ...userWithoutHash } = user;
+        return UserResponseSchema.parse(userWithoutHash);
+    }
+
+    throw new Exception("Failed to create user", 500, "InternalServerError");
 };
 
-export const update = async (id: number, data: Partial<User>) => {
+export const update = async (id: string, data: Partial<User>) => {
     const fields: string[] = [];
     const values: unknown[] = [];
     let placeholderIndex = 1;
@@ -79,15 +133,18 @@ export const update = async (id: number, data: Partial<User>) => {
 
     values.push(id); // Tham số cuối cùng cho WHERE id = $x
     const query = `
-        UPDATE users
+        UPDATE users u
         SET ${fields.join(", ")}
-        WHERE id = $${placeholderIndex}
-        RETURNING ${USER_SELECT_COLUMNS}
+        WHERE u.id = $${placeholderIndex}
+        RETURNING ${USER_SELECT_COLUMNS}, r.name AS role
+        FROM users u
+        JOIN roles r ON u.role_id = r.id
+        WHERE u.id = $${placeholderIndex}
     `;
 
     const result = await pool.query<IUser>(query, values);
     const user = result.rows[0] ?? null;
     if (!user) return null;
 
-    return UserSchema.parse(user);
+    return UserResponseSchema.parse(user);
 };

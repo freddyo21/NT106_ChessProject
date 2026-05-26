@@ -9,18 +9,22 @@
 
 export class Exception extends Error {
     protected readonly statusCode: number;
-    protected details: any;
+    protected _details: any;
     protected readonly isOperational: boolean;
 
-    constructor(message: string, statusCode = 500, details: any = null) {
+    constructor(message: string, statusCode = 500, name = "Exception", details: any = null) {
         super(message);
-        this.name = "Exception";
+        this.name = name;
         this.statusCode = statusCode;
-        this.details = details;
+        this._details = details;
         this.isOperational = true;
 
         if ((Error as any).captureStackTrace) {
             (Error as any).captureStackTrace(this, this.constructor);
         }
+    }
+
+    public get details() {
+        return this._details;
     }
 }

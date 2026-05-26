@@ -3,7 +3,7 @@ import * as authService from "../services/auth.service";
 import { validateLoginRequest } from "../schemas/auth/LoginRequestDTO";
 import { validateRegisterRequest } from "../schemas/auth/RegisterRequestDTO";
 import { LoginResponseDTO, UserResponseSchema } from "@zess-online-chess/shared";
-import { ForbiddenException, InvalidCredentialException } from "../exceptions";
+import { InvalidCredentialException } from "../exceptions";
 
 const ACCESS_TOKEN_EXPIRY = 15 * 60; // 15 minutes
 
@@ -17,10 +17,6 @@ export const login = async (req: Request, res: Response<LoginResponseDTO>, next:
 
         if (!user) {
             throw new InvalidCredentialException("Invalid email or password.");
-        }
-
-        if (!user.isVerified) {
-            throw new ForbiddenException("Your account is not verified. Please check your email for verification instructions.");
         }
 
         return res.status(200).json({

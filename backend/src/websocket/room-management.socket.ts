@@ -1,4 +1,5 @@
 import { Socket } from "socket.io";
+import { DEFAULT_ELO } from "@zess-online-chess/shared";
 import { Logger } from "../utils/Logger";
 import { ChessBoard } from "../entities/ChessBoard";
 import { JoinRoomPayloadSchema, LeaveRoomPayloadSchema } from "@zess-online-chess/shared";
@@ -8,11 +9,20 @@ type RoomPlayer = {
     userId: string;
     socketId: string;
     color: PlayerColor;
+    username: string;
+    elo: number;
 };
 
 type GameRoom = {
     players: RoomPlayer[];
     game: ChessBoard;
+    ratedResult?: {
+        result: "white" | "black" | "draw";
+        whiteDelta: number;
+        blackDelta: number;
+        whiteNextElo: number;
+        blackNextElo: number;
+    };
 };
 
 const gameRooms: Map<string, GameRoom> = new Map<string, GameRoom>();
@@ -28,10 +38,35 @@ const getAvailableColor = (players: RoomPlayer[]): PlayerColor | null => {
     return null;
 };
 
+const buildRoomsList = () => {
+    return [...gameRooms.entries()].map(([roomId, room]) => {
+        const host = room.players[0];
+        const players = room.players.length;
+
+        return {
+            id: roomId,
+            roomName: `Phòng của ${host?.username ?? "Unknown"}`,
+            roomCode: roomId,
+            hostName: host?.username ?? "Unknown",
+            hostElo: host?.elo ?? DEFAULT_ELO,
+            players,
+            maxPlayers: 2,
+            status: players >= 2 ? "playing" : "waiting",
+        };
+    });
+};
+
+const emitRoomsChanged = (socket: Socket) => {
+    // Room list là dữ liệu realtime trong memory, dùng để frontend bỏ danh sách phòng mock.
+    socket.nsp.emit("rooms:changed", buildRoomsList());
+};
+
 export function roomManagementSocket(socket: Socket) {
     const logger = new Logger("room-socket");
     const user = socket.data.user;
     const userId = user?.id;
+    const username = user?.username || "Unknown";
+    const elo = typeof user?.elo === "number" ? user.elo : DEFAULT_ELO;
 
     if (!userId) {
         logger.error("Socket connected without user id", { socketId: socket.id });
@@ -87,9 +122,11 @@ export function roomManagementSocket(socket: Socket) {
             if (!assignedColor) {
                 return socket.emit("room_error", "Room is full");
             }
-            room.players.push({ userId, socketId: socket.id, color: assignedColor });
+            room.players.push({ userId, socketId: socket.id, color: assignedColor, username, elo });
         } else {
             existingPlayer.socketId = socket.id;
+            existingPlayer.username = username;
+            existingPlayer.elo = elo;
         }
 
         socket.join(roomId);
@@ -100,6 +137,7 @@ export function roomManagementSocket(socket: Socket) {
         socket.emit("room_joined", {
             roomId,
             color: me?.color ?? null,
+            currentTurn: room.game.getCurrentTurn(),
             board: room.game.getBoard(),
             kingPositions: {
                 white: room.game.getKingPosition("white"),
@@ -115,7 +153,15 @@ export function roomManagementSocket(socket: Socket) {
             });
         }
 
+        emitRoomsChanged(socket);
         logger.log(`User ${socket.id} has joined room ${roomId}`);
+    });
+
+    socket.on("rooms:list", (callback?: (rooms: ReturnType<typeof buildRoomsList>) => void) => {
+        // Cho RoomListPage chủ động lấy snapshot danh sách phòng hiện tại.
+        const rooms = buildRoomsList();
+        callback?.(rooms);
+        socket.emit("rooms:list", rooms);
     });
 
     socket.on("leave_room", (data) => {
@@ -162,6 +208,7 @@ export function roomManagementSocket(socket: Socket) {
             socket.to(roomId).emit("player_left", { userId });
         }
 
+        emitRoomsChanged(socket);
         logger.log(`User ${socket.id} has left room ${roomId}`);
     });
 
@@ -201,6 +248,7 @@ export function roomManagementSocket(socket: Socket) {
 
                 userToRoom.delete(userId);
                 disconnectTimeouts.delete(userId);
+                emitRoomsChanged(socket);
                 logger.log(`User ${socket.id} disconnected from room ${roomId}`);
             }, 30000);
 

@@ -66,7 +66,13 @@ export const chatSocket = async (socket: Socket) => {
                 return;
             }
 
-            socket.nsp.emit("chat", payload);
+            socket.nsp.to(roomId).emit("chat", {
+                id: `${Date.now()}-${socket.id}`,
+                userId: socket.data.user?.id,
+                username,
+                message,
+                timestamp: new Date().toISOString()
+            });
         } catch (error) {
             logger.error("CHAT_ERROR", error);
             socket.emit("chat_error", {

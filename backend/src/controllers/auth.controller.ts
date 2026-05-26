@@ -103,7 +103,7 @@ export const forgotPassword = async (req: Request, res: Response, next: NextFunc
 export const changePassword = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const { currentPassword, newPassword, confirmPassword } = req.body;
-        const userId = (req as any).user?.id; // Assuming JWT middleware attaches user to request
+        const userId = (req as any).user?.sub; // JWT subject is the authenticated user id.
 
         if (!userId) {
             throw new InvalidCredentialException("User not authenticated");

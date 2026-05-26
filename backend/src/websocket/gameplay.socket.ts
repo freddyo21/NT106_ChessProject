@@ -2,27 +2,16 @@ import { Socket } from "socket.io";
 import { ChessMovePayloadSchema, GameReadyPayloadSchema, TimerSyncPayloadSchema } from "@zess-online-chess/shared";
 import { Position } from "../types/Position";
 import { getGameRoom } from "./room-management.socket";
-import {
-    AuthorizedRoomContext,
-    GameActionCallback,
-    GameRoom,
-    GameStatePayload,
-    PromotionPiece,
-} from "../types/Gameplay";
+import { AuthorizedRoomContext, GameActionCallback, GameRoom, GameStatePayload, PromotionPiece } from "../types/Gameplay";
 import { InvalidMoveException } from "../exceptions";
-import {
-    createTimer,
-    destroyTimer,
-    getSnapshot,
-    startTimer,
-    switchTurn,
-    TIME_CONTROLS,
-    TimeControlType,
-} from "../services/timer.service";
+import * as timerService from "../services/timer.service";
 
+const PROMOTION_PIECES: PromotionPiece[] = ["queen", "rook", "bishop", "knight"];
+  
 const DEFAULT_TIME_CONTROL: TimeControlType = "blitz";
 const roomToGameId = new Map<string, string>();
 
+// Chỉ các trạng thái kết thúc ván mới được dùng để cộng/trừ Elo.
 const getGameResultFromStatus = (status: string): "white" | "black" | "draw" | null => {
     if (status === "white_wins") return "white";
     if (status === "black_wins") return "black";
@@ -43,6 +32,7 @@ export const gameplaySocket = (socket: Socket) => {
     };
 
     const getAuthorizedRoomContext = (roomId: string): AuthorizedRoomContext => {
+        // Mọi action gameplay phải đến từ socket đã join đúng room để tránh move chéo phòng.
         if (!roomId) throw new Error("Missing roomId");
         if (!socket.rooms.has(roomId)) throw new Error("You are not in this room");
 
@@ -56,6 +46,7 @@ export const gameplaySocket = (socket: Socket) => {
     };
 
     const buildGameStatePayload = (roomId: string, room: GameRoom): GameStatePayload => ({
+        // Payload này là nguồn đồng bộ board/turn/status cho cả hai client trong cùng phòng.
         roomId,
         currentTurn: room.game.getCurrentTurn(),
         board: room.game.getBoard(),
@@ -66,24 +57,62 @@ export const gameplaySocket = (socket: Socket) => {
         gameStatus: room.game.getGameStatus(),
     });
 
-    const handleGameEnd = (roomId: string, room: GameRoom, timedOutColor?: "white" | "black") => {
-        destroyTimer(roomId);
-        roomToGameId.delete(roomId);
+    const applyRatedResultIfNeeded = async (room: GameRoom) => {
+        const result = getRatedResultFromGameStatus(room.game.getGameStatus());
 
-        if (timedOutColor) {
-            socket.nsp.to(roomId).emit("game_timeout", {
-                loser: timedOutColor,
-                winner: timedOutColor === "white" ? "black" : "white",
-            });
+        // ratedResult đảm bảo một ván chỉ apply Elo đúng một lần, kể cả client emit lại sau khi kết thúc.
+        if (!result || room.ratedResult) {
+            return;
         }
 
-        socket.nsp.to(roomId).emit("game_over", {
-            ...buildGameStatePayload(roomId, room),
-            timer: null,
+        const whitePlayer = room.players.find((player) => player.color === "white");
+        const blackPlayer = room.players.find((player) => player.color === "black");
+
+        if (!whitePlayer || !blackPlayer) {
+            return;
+        }
+
+        const eloResult = await applyMatchEloResult({
+            whiteUserId: whitePlayer.userId,
+            blackUserId: blackPlayer.userId,
+            whiteElo: whitePlayer.elo,
+            blackElo: blackPlayer.elo,
+            result,
         });
+
+        // Cập nhật Elo in-memory để room list/board sau đó thấy Elo mới ngay, không cần reconnect.
+        whitePlayer.elo = eloResult.whiteNextElo;
+        blackPlayer.elo = eloResult.blackNextElo;
+        room.ratedResult = {
+            result,
+            whiteDelta: eloResult.whiteDelta,
+            blackDelta: eloResult.blackDelta,
+            whiteNextElo: eloResult.whiteNextElo,
+            blackNextElo: eloResult.blackNextElo,
+        };
     };
 
-    const runGameAction = async <T extends object = Record<string, never>>({
+    const runGameAction = async <T extends object = {}>({
+      
+      
+//     const handleGameEnd = (roomId: string, room: GameRoom, timedOutColor?: "white" | "black") => {
+//         destroyTimer(roomId);
+//         roomToGameId.delete(roomId);
+
+//         if (timedOutColor) {
+//             socket.nsp.to(roomId).emit("game_timeout", {
+//                 loser: timedOutColor,
+//                 winner: timedOutColor === "white" ? "black" : "white",
+//             });
+//         }
+
+//         socket.nsp.to(roomId).emit("game_over", {
+//             ...buildGameStatePayload(roomId, room),
+//             timer: null,
+//         });
+//     };
+
+//     const runGameAction = async <T extends object = Record<string, never>>({
         roomId,
         eventName,
         callback,
@@ -97,19 +126,24 @@ export const gameplaySocket = (socket: Socket) => {
         try {
             const context = getAuthorizedRoomContext(roomId);
             const extraPayload = action(context) ?? ({} as T);
-
-            const gameStatus = context.room.game.getGameStatus();
-            const isGameOver = getGameResultFromStatus(gameStatus) !== null;
-
-            const timerSnapshot = isGameOver ? null : await switchTurn(roomId);
-
-            if (isGameOver) {
-                handleGameEnd(roomId, context.room);
-            }
-
-            const payload = {
+            // Sau mỗi action hợp lệ, kiểm tra xem nước đi đó có kết thúc ván và cần tính Elo không.
+            await applyRatedResultIfNeeded(context.room);
+            const payload: GameStatePayload & T = {
                 ...buildGameStatePayload(roomId, context.room),
-                timer: isGameOver ? null : timerSnapshot,
+                // eloUpdate chỉ xuất hiện khi ván đã chốt Elo, frontend dùng để cập nhật badge và thông báo.
+                eloUpdate: context.room.ratedResult,
+//             const gameStatus = context.room.game.getGameStatus();
+//             const isGameOver = getGameResultFromStatus(gameStatus) !== null;
+
+//             const timerSnapshot = isGameOver ? null : await switchTurn(roomId);
+
+//             if (isGameOver) {
+//                 handleGameEnd(roomId, context.room);
+//             }
+
+//             const payload = {
+//                 ...buildGameStatePayload(roomId, context.room),
+//                 timer: isGameOver ? null : timerSnapshot,
                 ...extraPayload,
             };
 
@@ -186,8 +220,16 @@ export const gameplaySocket = (socket: Socket) => {
                     throw new InvalidMoveException("It is not your turn!");
                 }
 
+                if (
+                    promotionPiece !== undefined &&
+                    !PROMOTION_PIECES.includes(promotionPiece)
+                ) {
+                    throw new InvalidMoveException("Invalid promotion piece");
+                }
+
                 const moved = room.game.movePiece(from, to, promotionPiece);
                 if (!moved) throw new InvalidMoveException("Illegal move");
+
 
                 return promotionPiece === undefined
                     ? { from, to }

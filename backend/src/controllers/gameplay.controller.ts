@@ -1,10 +1,10 @@
 import { Request, Response } from "express"
 import * as gameplayService from "../services/gameplay.service";
-import { invitationParametersSchema, SuccessResponseSchema } from "@zess-online-chess/shared";
+import { InvitationParametersSchema, SuccessResponseSchema } from "@zess-online-chess/shared";
 
 export const createInvitationCode = async (req: Request, res: Response) => {
     try {
-        const result = invitationParametersSchema.safeParse(req.params);
+        const result = InvitationParametersSchema.safeParse(req.params);
 
         if (!result.success) {
             return res.status(400).json({
@@ -36,7 +36,7 @@ export const createInvitationCode = async (req: Request, res: Response) => {
             error: "Failed to create invitation code"
         });
     }
-}
+};
 
 export const joinGameWithInvite = async (req: Request, res: Response) => {
     // This will be handled in the route after the verifyInvite middleware

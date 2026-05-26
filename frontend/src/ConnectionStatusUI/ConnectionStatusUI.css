@@ -1,0 +1,251 @@
+/* ═══════════════════════════════════════════════
+   ConnectionStatusUI — Full card + Compact variant
+═══════════════════════════════════════════════ */
+
+/* ── FULL CARD ─────────────────────────────── */
+.connection-status-wrapper {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.connection-status-card {
+  width: 100%;
+  background: linear-gradient(180deg, rgba(10, 18, 34, 0.95), rgba(7, 13, 26, 0.95));
+  border: 1px solid rgba(110, 168, 255, 0.18);
+  border-radius: 18px;
+  box-shadow:
+    0 10px 30px rgba(0, 0, 0, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  padding: 18px;
+  color: #eaf2ff;
+  backdrop-filter: blur(10px);
+}
+
+.connection-status-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.connection-status-title-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.connection-status-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  margin-top: 4px;
+  box-shadow: 0 0 14px currentColor;
+}
+
+.connection-status-dot.connected    { background: #35d07f; color: #35d07f; }
+.connection-status-dot.connecting   { background: #ffd166; color: #ffd166; animation: pulseStatus 1.6s infinite; }
+.connection-status-dot.reconnecting { background: #ffb347; color: #ffb347; animation: pulseStatus 1.2s infinite; }
+.connection-status-dot.disconnected { background: #ff5f6d; color: #ff5f6d; animation: pulseStatus 1s infinite; }
+
+.connection-status-text-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.connection-status-title {
+  font-size: 20px;
+  font-weight: 700;
+  margin: 0;
+  color: #f4f8ff;
+}
+
+.connection-status-label {
+  margin: 0;
+  font-size: 14px;
+  color: #b7c6df;
+}
+
+.connection-status-badge {
+  padding: 8px 12px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 700;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+.connection-status-badge.connected    { background: rgba(53,208,127,.14); color: #8ef0b6; border-color: rgba(53,208,127,.28); }
+.connection-status-badge.connecting   { background: rgba(255,209,102,.14); color: #ffe08a; border-color: rgba(255,209,102,.28); }
+.connection-status-badge.reconnecting { background: rgba(255,179,71,.14);  color: #ffc870; border-color: rgba(255,179,71,.28); }
+.connection-status-badge.disconnected { background: rgba(255,95,109,.14);  color: #ff9aa3; border-color: rgba(255,95,109,.28); }
+
+.connection-status-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.connection-status-description {
+  margin: 0;
+  line-height: 1.6;
+  font-size: 14px;
+  color: #d6e2f4;
+}
+
+.connection-status-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.connection-status-meta-item {
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(130, 170, 255, 0.12);
+  font-size: 13px;
+  color: #c6d6ee;
+}
+
+.connection-status-actions { display: flex; justify-content: flex-start; }
+
+.connection-status-retry-btn {
+  border: none;
+  outline: none;
+  cursor: pointer;
+  border-radius: 12px;
+  padding: 11px 16px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #0b1220;
+  background: linear-gradient(135deg, #7bb0ff, #91c4ff);
+  transition: transform 0.18s ease, box-shadow 0.18s ease, opacity 0.18s ease;
+  box-shadow: 0 10px 20px rgba(76, 139, 255, 0.25);
+}
+
+.connection-status-retry-btn:hover  { transform: translateY(-1px); box-shadow: 0 14px 28px rgba(76,139,255,.3); }
+.connection-status-retry-btn:active { transform: translateY(0); opacity: .95; }
+
+/* Warning banner */
+.connection-warning-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  width: 100%;
+  padding: 14px 16px;
+  border-radius: 16px;
+  border: 1px solid transparent;
+  backdrop-filter: blur(8px);
+}
+
+.connection-warning-banner.reconnecting { background: rgba(255,179,71,.12); border-color: rgba(255,179,71,.24); }
+.connection-warning-banner.disconnected { background: rgba(255,95,109,.12); border-color: rgba(255,95,109,.24); }
+
+.connection-warning-icon { font-size: 18px; line-height: 1; margin-top: 2px; }
+
+.connection-warning-content strong {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 14px;
+  color: #f5f8ff;
+}
+
+.connection-warning-content p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.55;
+  color: #d6e2f4;
+}
+
+/* ── COMPACT VARIANT ──────────────────────────
+   Usage: <ConnectionStatusUI compact />
+   Renders as a single-line pill indicator.
+   Perfect for embedding inside chess board Info tab.
+─────────────────────────────────────────────── */
+
+.conn-compact {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 11px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: default;
+  user-select: none;
+  width: 100%;
+  justify-content: space-between;
+}
+
+.conn-compact.connected    { background: rgba(53,208,127,.1);  border-color: rgba(53,208,127,.22);  color: #6ee7b7; }
+.conn-compact.connecting   { background: rgba(255,209,102,.1); border-color: rgba(255,209,102,.22); color: #fde68a; }
+.conn-compact.reconnecting { background: rgba(255,179,71,.1);  border-color: rgba(255,179,71,.22);  color: #fdba74; }
+.conn-compact.disconnected { background: rgba(255,95,109,.1);  border-color: rgba(255,95,109,.22);  color: #fca5a5; }
+
+.conn-compact__left {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.conn-compact__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.conn-compact.connected    .conn-compact__dot { background: #35d07f; box-shadow: 0 0 6px rgba(53,208,127,.8); }
+.conn-compact.connecting   .conn-compact__dot { background: #ffd166; box-shadow: 0 0 6px rgba(255,209,102,.8); animation: pulseStatus 1.6s infinite; }
+.conn-compact.reconnecting .conn-compact__dot { background: #ffb347; box-shadow: 0 0 6px rgba(255,179,71,.8);  animation: pulseStatus 1.2s infinite; }
+.conn-compact.disconnected .conn-compact__dot { background: #ff5f6d; box-shadow: 0 0 6px rgba(255,95,109,.8);  animation: pulseStatus 1s infinite; }
+
+.conn-compact__label { font-size: 12px; font-weight: 700; }
+
+.conn-compact__server {
+  font-size: 11px;
+  font-weight: 600;
+  opacity: 0.7;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100px;
+}
+
+/* Retry button inside compact */
+.conn-compact__retry {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 700;
+  color: inherit;
+  text-decoration: underline;
+  padding: 0;
+  flex-shrink: 0;
+  opacity: 0.85;
+  transition: opacity 0.15s;
+}
+
+.conn-compact__retry:hover { opacity: 1; }
+
+/* ── ANIMATION ─────────────────────────────── */
+@keyframes pulseStatus {
+  0%   { transform: scale(1);    opacity: 1;    box-shadow: 0 0 0 0 currentColor; }
+  70%  { transform: scale(1.08); opacity: 0.85; box-shadow: 0 0 0 8px transparent; }
+  100% { transform: scale(1);    opacity: 1;    box-shadow: 0 0 0 0 transparent; }
+}
+
+/* ── RESPONSIVE ─────────────────────────────── */
+@media (max-width: 768px) {
+  .connection-status-header { flex-direction: column; align-items: flex-start; }
+  .connection-status-badge  { align-self: flex-start; }
+  .connection-status-title  { font-size: 18px; }
+  .connection-status-card   { padding: 16px; }
+}

@@ -14,6 +14,7 @@ export type GameStatePayload = {
         black: ReturnType<GameRoom["game"]["getKingPosition"]>;
     };
     gameStatus: ReturnType<GameRoom["game"]["getGameStatus"]>;
+//     eloUpdate?: GameRoom["ratedResult"];
     timer?: TimerSnapshot | null;
 };
 

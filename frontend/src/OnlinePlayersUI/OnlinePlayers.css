@@ -1,0 +1,194 @@
+/* ── PANEL ── */
+.op-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+/* ── HEADER — chỉ 1 dòng gọn ── */
+.op-header {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  padding: 0 2px;
+}
+
+.op-kicker {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  color: #59c1ff;
+}
+
+.op-count {
+  min-width: 24px;
+  height: 24px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(14, 165, 233, 0.14);
+  border: 1px solid rgba(89, 193, 255, 0.2);
+  color: #9edcff;
+  font-weight: 700;
+  font-size: 12px;
+  padding: 0 6px;
+}
+
+/* ── LIST ── */
+.op-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* ── CARD — compact, horizontal ── */
+.op-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(14, 20, 32, 0.7);
+  border: 1px solid rgba(103, 121, 153, 0.15);
+  transition: border-color 0.15s ease;
+}
+
+.op-card:hover {
+  border-color: rgba(89, 193, 255, 0.2);
+}
+
+/* ── AVATAR ── */
+.op-avatar-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.op-avatar,
+.op-avatar-img {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+}
+
+.op-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #14b8a6, #0ea5e9);
+  color: #fff;
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.op-avatar-img {
+  object-fit: cover;
+  display: block;
+}
+
+/* Status dot */
+.op-dot {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 2px solid #0d1220;
+}
+
+.op-dot--online  { background: #22c55e; }
+.op-dot--playing { background: #f59e0b; }
+.op-dot--idle    { background: #60a5fa; }
+
+/* ── INFO ── */
+.op-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.op-name-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: nowrap;
+  overflow: hidden;
+}
+
+.op-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: #f0f4fc;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.op-rank-badge {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+  flex: 0 0 22px;
+  display: block;
+  transform: translateY(1px);
+}
+
+.op-rank-text {
+  font-size: 11px;
+  font-weight: 600;
+  color: #93c5fd;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* Elo + subtitle trên 1 dòng */
+.op-meta {
+  font-size: 11px;
+  color: #6b7f9a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── STATUS ── */
+.op-status-pill {
+  flex-shrink: 0;
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.op-status-pill--online {
+  color: #86efac;
+  background: rgba(34, 197, 94, 0.12);
+  border: 1px solid rgba(34, 197, 94, 0.18);
+}
+
+.op-status-pill--playing {
+  color: #facc15;
+  background: rgba(234, 179, 8, 0.12);
+  border: 1px solid rgba(234, 179, 8, 0.18);
+}
+
+.op-status-pill--idle {
+  color: #93c5fd;
+  background: rgba(96, 165, 250, 0.12);
+  border: 1px solid rgba(96, 165, 250, 0.18);
+}
+
+/* ── EMPTY ── */
+.op-empty {
+  text-align: center;
+  padding: 20px 12px;
+  border-radius: 10px;
+  color: #4a5a72;
+  font-size: 13px;
+  background: rgba(255, 255, 255, 0.02);
+}

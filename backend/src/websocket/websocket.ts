@@ -1,6 +1,6 @@
 import { Server as HttpServer } from "node:http";
 import { Server, Socket } from "socket.io";
-import { roomManagementSocket, gameplaySocket, chatSocket } from "./";
+import { roomManagementSocket, gameplaySocket, chatSocket, matchmakingSocket, lobbySocket, presenceSocket } from "./";
 import { Logger } from "../utils/Logger";
 import { jwtVerify } from "../auth/jwt-verify";
 import { JwtInvalidException } from "../exceptions";
@@ -10,10 +10,34 @@ import { createRedisPubSubClients } from "../config/redis.config";
 // Track disconnect timeouts to clean up on reconnect
 const disconnectTimeouts = new Map<string, NodeJS.Timeout>();
 
+const getAllowedOrigins = () => {
+    const configuredOrigins = (
+        process.env.FRONTEND_CORS_ALLOWED_ORIGINS ||
+        process.env.FRONTEND_CORS_ALLOWED ||
+        ""
+    )
+        ?.split(",")
+        .map((origin) => origin.trim())
+        .filter(Boolean);
+
+    if (configuredOrigins?.length) {
+        return configuredOrigins;
+    }
+
+    return [
+        "http://localhost:1420",
+        "http://127.0.0.1:1420",
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:1421",
+        "http://127.0.0.1:1421",
+    ];
+};
+
 export const socketInitialize = async (httpServer: HttpServer) => {
     const io = new Server(httpServer, {
         cors: {
-            origin: process.env.FRONTEND_CORS_ALLOWED || "http://localhost:1420",
+            origin: getAllowedOrigins(),
             methods: ["GET", "POST"]
         }
     });
@@ -35,17 +59,18 @@ export const socketInitialize = async (httpServer: HttpServer) => {
 
         try {
             const user = jwtVerify(token);
+            const userId =
+                typeof user.sub === "string"
+                    ? user.sub
+                    : (user as { sub?: string }).sub;
 
-            if (!user?.sub) {
+            // Validate user ID exists
+            if (!userId) {
                 return next(new JwtInvalidException("Invalid user ID"));
             }
 
-            socket.data.user = {
-                ...user,
-                id: user.sub,
-            };
-
-            return next();
+            socket.data.user = { ...user, id: userId };
+            next();
         } catch (err) {
             if (err instanceof JwtInvalidException) {
                 return next(err);
@@ -76,6 +101,9 @@ export const socketInitialize = async (httpServer: HttpServer) => {
 
         gameplaySocket(socket);
         chatSocket(socket);
+        lobbySocket(socket);
+        matchmakingSocket(socket);
+        presenceSocket(socket);
         roomManagementSocket(socket);
 
         socket.on("disconnect", () => {

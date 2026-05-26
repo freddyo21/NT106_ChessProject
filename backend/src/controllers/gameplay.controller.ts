@@ -24,6 +24,7 @@ export const createInvitationCode = async (req: Request, res: Response) => {
         const success = SuccessResponseSchema.parse({
             message: "Invitation code created successfully",
             data: {
+                roomId,
                 code,
                 expiresAt
             }
@@ -45,12 +46,10 @@ export const joinGameWithInvite = async (req: Request, res: Response) => {
         message: "Successfully joined the game with invite code",
         data: {
             roomId: req.params.rid,
-            role: "player", // The role can be determined based on the game state (e.g., if the room already has a player, the new joiner might be a spectator)
-            // color: "random", // The color can be assigned randomly or based on the game state (e.g., if the room already has a player with white pieces, the new joiner gets black pieces, or vice versa)
-
-
-
-
-        }
+            socketEvent: "join_room",
+            socketPayload: {
+                roomId: req.params.rid,
+            },
+        },
     });
-}
+};

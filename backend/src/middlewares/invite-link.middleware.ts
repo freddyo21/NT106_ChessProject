@@ -27,14 +27,13 @@ export const verifyInvite = async (req: Request, res: Response, next: NextFuncti
         return res.status(400).json({ error: "Missing invitation code" });
     }
 
-    const validationResult = verifyInvitationCode(
-        roomId,
-        codeString
-    );
+    const validationResult = await verifyInvitationCode(roomId, codeString);
 
     if (!validationResult.isValid) {
-        return res.status(403).json({ error: validationResult.error ?? "Invalid invitation code" });
+        return res.status(403).json({
+            error: validationResult.error ?? "Invalid invitation code",
+        });
     }
 
-    next();
+    return next();
 };

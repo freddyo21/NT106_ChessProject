@@ -1,7 +1,7 @@
 import { Socket } from "socket.io";
 import { Logger } from "../utils/Logger";
 import { ChessBoard } from "../entities/ChessBoard";
-
+import { JoinRoomPayloadSchema, LeaveRoomPayloadSchema } from "@zess-online-chess/shared";
 type PlayerColor = "white" | "black";
 
 type RoomPlayer = {
@@ -46,7 +46,14 @@ export function roomManagementSocket(socket: Socket) {
         }
     };
 
-    socket.on("join_room", (roomId: string) => {
+    socket.on("join_room", (data) => {
+        const result = JoinRoomPayloadSchema.safeParse(data);
+
+        if (!result.success) {
+            return socket.emit("room_error", "Invalid room payload");
+        }
+
+        const { roomId } = result.data;
         if (!roomId) {
             return socket.emit("room_error", "Room ID is required to join a room.");
         }
@@ -111,7 +118,14 @@ export function roomManagementSocket(socket: Socket) {
         logger.log(`User ${socket.id} has joined room ${roomId}`);
     });
 
-    socket.on("leave_room", (roomId: string) => {
+    socket.on("leave_room", (data) => {
+        const result = LeaveRoomPayloadSchema.safeParse(data);
+
+        if (!result.success) {
+            return socket.emit("room_error", "Invalid room payload");
+        }
+
+        const { roomId } = result.data;
         if (!roomId) {
             return socket.emit("room_error", "Room ID is required to leave.");
         }

@@ -16,3 +16,4 @@ router.use("/auth", authRouter);
 router.use("/gameplay", authMiddleware, gameplayRouter);
 
 export { router };
+

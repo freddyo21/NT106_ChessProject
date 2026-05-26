@@ -5,7 +5,9 @@ import { JwtInvalidException } from "../exceptions";
 import { getBearerToken } from "../auth/jwt-verify";
 
 type JwtRequest = Request & {
-    user?: string | JwtPayload;
+    user?: (string | JwtPayload) & {
+        id?: string;
+    };
 };
 
 export const authMiddleware = (req: JwtRequest, res: Response, next: NextFunction) => {
@@ -17,11 +19,19 @@ export const authMiddleware = (req: JwtRequest, res: Response, next: NextFunctio
 
     try {
         const payload = validateToken(token);
-        req.user = payload;
+
+        if (!payload.sub) {
+            return next(new JwtInvalidException("Invalid authorization token"));
+        }
+
+        req.user = {
+            ...payload,
+            id: payload.sub,
+        };
+
+        return next();
     } catch (error) {
         res.status(401).json({ error: "Invalid or expired token" });
         return next(error);
     }
-
-    return next();
 };

@@ -2,7 +2,7 @@ import { Socket } from "socket.io";
 import { DEFAULT_ELO } from "@zess-online-chess/shared";
 import { Logger } from "../utils/Logger";
 import { ChessBoard } from "../entities/ChessBoard";
-
+import { JoinRoomPayloadSchema, LeaveRoomPayloadSchema } from "@zess-online-chess/shared";
 type PlayerColor = "white" | "black";
 
 type RoomPlayer = {
@@ -29,8 +29,6 @@ const gameRooms: Map<string, GameRoom> = new Map<string, GameRoom>();
 const userToRoom = new Map<string, string>();
 const disconnectTimeouts = new Map<string, NodeJS.Timeout>();
 
-type JoinRoomPayload = string;
-
 const getAvailableColor = (players: RoomPlayer[]): PlayerColor | null => {
     const hasWhite = players.some((player) => player.color === "white");
     const hasBlack = players.some((player) => player.color === "black");
@@ -38,12 +36,6 @@ const getAvailableColor = (players: RoomPlayer[]): PlayerColor | null => {
     if (!hasWhite) return "white";
     if (!hasBlack) return "black";
     return null;
-};
-
-const parseJoinRoomPayload = (payload: JoinRoomPayload) => {
-    return {
-        roomId: typeof payload === "string" ? payload : payload?.roomId,
-    };
 };
 
 const buildRoomsList = () => {
@@ -89,9 +81,14 @@ export function roomManagementSocket(socket: Socket) {
         }
     };
 
-    socket.on("join_room", (payload: JoinRoomPayload) => {
-        const { roomId } = parseJoinRoomPayload(payload);
+    socket.on("join_room", (data) => {
+        const result = JoinRoomPayloadSchema.safeParse(data);
 
+        if (!result.success) {
+            return socket.emit("room_error", "Invalid room payload");
+        }
+
+        const { roomId } = result.data;
         if (!roomId) {
             return socket.emit("room_error", "Room ID is required to join a room.");
         }
@@ -167,7 +164,14 @@ export function roomManagementSocket(socket: Socket) {
         socket.emit("rooms:list", rooms);
     });
 
-    socket.on("leave_room", (roomId: string) => {
+    socket.on("leave_room", (data) => {
+        const result = LeaveRoomPayloadSchema.safeParse(data);
+
+        if (!result.success) {
+            return socket.emit("room_error", "Invalid room payload");
+        }
+
+        const { roomId } = result.data;
         if (!roomId) {
             return socket.emit("room_error", "Room ID is required to leave.");
         }

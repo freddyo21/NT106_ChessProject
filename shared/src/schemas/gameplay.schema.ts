@@ -36,7 +36,7 @@ export const TimerSyncPayloadSchema = z.object({
     roomId: z.string().min(1, "roomId is required"),
 }).strict();
 
-export const invitationParametersSchema = z.object({
+export const InvitationParametersSchema = z.object({
     rid: z.uuidv7("Invalid room ID format")
         .min(1, "Room ID is required")
         .refine((val) => val.trim() !== "", "Room ID cannot be empty")

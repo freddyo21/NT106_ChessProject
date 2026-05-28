@@ -24,9 +24,7 @@ export const generateToken = (user: UserResponse, expiresIn: ms.StringValue = "1
         aud: process.env.JWT_ISSUER,    // Audience of the token
         iat: issuedAt,
         email: user.email,
-        name: user.name,
         username: user.username,
-        elo: user.elo,
         role: user.role,
         status: user.status
     };
@@ -39,6 +37,33 @@ export const generateToken = (user: UserResponse, expiresIn: ms.StringValue = "1
             expiresIn,
         }
     );
+};
+
+const refreshTokenStore = new Map<string, RefreshTokenRecord>();
+
+// const getSecretKey = (): string => {
+//     const key = process.env.JWT_SECRET_KEY; // Do not provide a default value for the secret key, as it is critical for security.
+//     const hasKey = key && key.trim().length > 0; // Check if the key exists and is not just whitespace.
+
+//     if (!hasKey) {
+//         throw new JwtInvalidException("Secret key is missing or empty in environment configuration.");
+//     }
+
+//     return key;
+// };
+
+// Cần bỏ sau khi đã có Redis để blacklist refresh token
+const cleanupExpiredRefreshTokens = () => {
+    const now = Date.now();
+    for (const [token, record] of refreshTokenStore.entries()) {
+        if (record.expiresAt <= now) {
+            refreshTokenStore.delete(token);
+        }
+    }
+};
+
+const generateRefreshTokenString = (): string => {
+    return crypto.randomBytes(32).toString("hex");
 };
 
 const refreshTokenStore = new Map<string, RefreshTokenRecord>();

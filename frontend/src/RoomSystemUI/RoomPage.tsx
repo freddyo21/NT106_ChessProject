@@ -1,12 +1,14 @@
 ﻿import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { DEFAULT_ELO, ERoles, getEloRankLabel, getRankByElo } from "@zess-online-chess/shared";
+import { DEFAULT_ELO, ERoles } from "@zess-online-chess/shared";
 import ChatUI, { type ChatMessage } from "../ChatUI/ChatUI";
 import logoImage from "../Image/ZessOnlChessLogoDon.svg";
 import { getCurrentUser, getUserDisplayName, type AuthSessionUser } from "../services/authSession";
 import "./RoomPage.css";
 
-// â”€â”€ Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Types
+
+type PlayerColor = "white" | "black";
 
 type PlayerSlot = {
   id: string;
@@ -16,7 +18,7 @@ type PlayerSlot = {
   isReady: boolean;
   online: boolean;
   rating: number;
-  color: "white" | "black" | null;
+  color: PlayerColor | null;
 };
 
 type RoomData = {
@@ -30,7 +32,7 @@ type RoomData = {
 
 type RoomSettings = {
   roomName: string;
-  hostColor: "white" | "black" | "random";
+  hostColor: PlayerColor | "random";
   timeControl: 1 | 3 | 5 | "custom";
   customMinutes: number;
   bonusSeconds: number;
@@ -46,22 +48,34 @@ type RoomRouteState = {
   hostElo?: number;
 };
 
-// â”€â”€ Constants â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Constants
 
 const CURRENT_USER_ID  = "current-user";
 
 const TIME_PRESETS: { label: string; value: 1 | 3 | 5 | "custom" }[] = [
-  { label: "1 phĂºt",    value: 1        },
-  { label: "3 phĂºt",    value: 3        },
-  { label: "5 phĂºt",    value: 5        },
-  { label: "Tuá»³ chá»n", value: "custom" },
+  { label: "1 phút", value: 1 },
+  { label: "3 phút", value: 3 },
+  { label: "5 phút", value: 5 },
+  { label: "Tùy chọn", value: "custom" },
 ];
+
+function getOppositeColor(color: PlayerColor): PlayerColor {
+  return color === "white" ? "black" : "white";
+}
+
+function resolveHostColor(hostColor: RoomSettings["hostColor"]): PlayerColor {
+  if (hostColor === "random") {
+    return Math.random() < 0.5 ? "white" : "black";
+  }
+
+  return hostColor;
+}
 
 const INITIAL_CHAT_MESSAGES: ChatMessage[] = [
   {
     id: "sys-01",
     sender: "System",
-    text: "PhĂ²ng Ä‘Ă£ sáºµn sĂ ng. Chia sáº» mĂ£ phĂ²ng Ä‘á»ƒ má»i Ä‘á»‘i thá»§!",
+    text: "Phòng đã sẵn sàng. Chia sẻ mã phòng để mời đối thủ!",
     timestamp: new Date().toLocaleTimeString("vi-VN", {
       hour: "2-digit",
       minute: "2-digit",
@@ -70,7 +84,7 @@ const INITIAL_CHAT_MESSAGES: ChatMessage[] = [
   },
 ];
 
-// â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Helpers
 
 function getAuthenticatedUser(): AuthSessionUser {
   // Room waiting UI uses the authenticated session; this fallback only prevents a blank crash during redirect.
@@ -90,8 +104,8 @@ function buildInitialRoom(
   routeState: RoomRouteState | null,
   currentUser: AuthSessionUser
 ): RoomData {
-  //{Sinh dá»¯ liá»‡u phĂ²ng ban Ä‘áº§u dá»±a trĂªn route state}
-  const roomName = routeState?.roomName ?? "PhĂ²ng Ä‘áº¥u nhanh";
+  // Build the initial waiting-room state from the navigation payload.
+  const roomName = routeState?.roomName ?? "Phòng đấu nhanh";
   const roomCode = routeState?.roomCode ?? "AB12CD";
   const roomId   = routeState?.roomId   ?? "room-001";
   const username = currentUser.username  ?? "admin";
@@ -129,29 +143,22 @@ function buildInitialRoom(
   };
 }
 
-// â”€â”€ EloRank badge â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// EloRank badge
 
-function EloRank({ rating }: { rating: number }) {
-  // Room page rank badge follows the shared Elo mapping used by Lobby/Board.
-  const rank = getRankByElo(rating);
-
-  return (
-    <span className={`rp-elo-tag rp-elo-${rank.tier}`}>
-      {getEloRankLabel(rating)}
-    </span>
-  );
+function EloLabel({ rating }: { rating: number }) {
+  return <span className="rp-elo-tag">Elo {rating}</span>;
 }
 
-// â”€â”€ PlayerCard â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// PlayerCard
 
 function PlayerCard({ player, slot }: { player: PlayerSlot | null; slot: 1 | 2 }) {
   if (!player) {
     return (
       <div className="rp-player-card rp-player-card--empty">
         <div className="rp-player-avatar rp-player-avatar--empty">
-          {slot === 1 ? "â™”" : "â™"}
+          {slot === 1 ? "♔" : "♚"}
         </div>
-        <p className="rp-player-empty-text">Chá» ngÆ°á»i chÆ¡i...</p>
+        <p className="rp-player-empty-text">Chờ người chơi...</p>
       </div>
     );
   }
@@ -165,18 +172,18 @@ function PlayerCard({ player, slot }: { player: PlayerSlot | null; slot: 1 | 2 }
       >
         {player.username.slice(0, 2).toUpperCase()}
         {player.isHost && (
-          <span className="rp-host-crown" title="Chá»§ phĂ²ng">
-            â™›
+          <span className="rp-host-crown" title="Chủ phòng">
+            ♛
           </span>
         )}
       </div>
 
       <div className="rp-player-info">
         <p className="rp-player-name">{player.displayName}</p>
-        <EloRank rating={player.rating} />
+        <EloLabel rating={player.rating} />
         {player.color && (
           <span className={`rp-color-badge rp-color-badge--${player.color}`}>
-            {player.color === "white" ? "â™” Tráº¯ng" : "â™ Äen"}
+            {player.color === "white" ? "♔ Trắng" : "♚ Đen"}
           </span>
         )}
       </div>
@@ -193,14 +200,14 @@ function PlayerCard({ player, slot }: { player: PlayerSlot | null; slot: 1 | 2 }
         {player.isHost
           ? "HOST"
           : player.isReady
-          ? "âœ“ Sáºµn sĂ ng"
-          : "ChÆ°a sáºµn sĂ ng"}
+          ? "✓ Sẵn sàng"
+          : "Chưa sẵn sàng"}
       </div>
     </div>
   );
 }
 
-// â”€â”€ Settings Panel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Settings Panel
 
 function SettingsPanel({
   settings,
@@ -229,11 +236,11 @@ function SettingsPanel({
 
   return (
     <div className="rp-settings">
-      <h3 className="rp-settings-title">â™ TĂ¹y chá»‰nh phĂ²ng Ä‘áº¥u</h3>
+      <h3 className="rp-settings-title">Tùy chỉnh phòng đấu</h3>
 
-      {/* TĂªn phĂ²ng */}
+      {/* Room name */}
       <div className="rp-settings-group">
-        <label className="rp-settings-label">TĂªn phĂ²ng</label>
+        <label className="rp-settings-label">Tên phòng</label>
 
         {isHost && editingName ? (
           <div className="rp-name-edit-row">
@@ -251,17 +258,17 @@ function SettingsPanel({
               type="button"
               className="rp-icon-btn rp-icon-btn--confirm"
               onClick={saveName}
-              title="LÆ°u"
+              title="Lưu"
             >
-              âœ“
+              ✓
             </button>
             <button
               type="button"
               className="rp-icon-btn rp-icon-btn--cancel"
               onClick={() => setEditingName(false)}
-              title="Huá»·"
+              title="Hủy"
             >
-              âœ•
+              ✕
             </button>
           </div>
         ) : (
@@ -269,16 +276,16 @@ function SettingsPanel({
             <span className="rp-settings-value">{settings.roomName}</span>
             {isHost && (
               <button type="button" className="rp-edit-btn" onClick={startEdit}>
-                âœ Äá»•i tĂªn
+                Đổi tên
               </button>
             )}
           </div>
         )}
       </div>
 
-      {/* MĂ u quĂ¢n */}
+      {/* Piece color */}
       <div className="rp-settings-group">
-        <label className="rp-settings-label">MĂ u quĂ¢n cá»§a Host</label>
+        <label className="rp-settings-label">Màu quân của Host</label>
         <div className="rp-color-picker">
           {(["white", "black", "random"] as const).map((c) => (
             <button
@@ -292,15 +299,15 @@ function SettingsPanel({
                 !isHost ? "rp-color-btn--disabled" : "",
               ].join(" ")}
             >
-              {c === "white" ? "â™” Tráº¯ng" : c === "black" ? "â™ Äen" : "đŸ”€ Random"}
+              {c === "white" ? "♔ Trắng" : c === "black" ? "♚ Đen" : "Random"}
             </button>
           ))}
         </div>
       </div>
 
-      {/* Thá»i gian */}
+      {/* Time control */}
       <div className="rp-settings-group">
-        <label className="rp-settings-label">Thá»i gian vĂ¡n Ä‘áº¥u</label>
+        <label className="rp-settings-label">Thời gian ván đấu</label>
         <div className="rp-time-presets">
           {TIME_PRESETS.map((p) => (
             <button
@@ -321,7 +328,7 @@ function SettingsPanel({
 
         {settings.timeControl === "custom" && (
           <div className="rp-custom-time-row">
-            <label className="rp-settings-label-sm">Sá»‘ phĂºt:</label>
+            <label className="rp-settings-label-sm">Số phút:</label>
             <input
               type="number"
               min={1}
@@ -331,7 +338,7 @@ function SettingsPanel({
               value={settings.customMinutes}
               onChange={(e) => onChange("customMinutes", Number(e.target.value))}
             />
-            <span className="rp-settings-label-sm">phĂºt</span>
+            <span className="rp-settings-label-sm">phút</span>
           </div>
         )}
       </div>
@@ -339,7 +346,7 @@ function SettingsPanel({
       {/* Bonus seconds */}
       <div className="rp-settings-group">
         <label className="rp-settings-label">
-          Cá»™ng thĂªm má»—i nÆ°á»›c
+          Cộng thêm mỗi nước
           <span className="rp-bonus-value">&nbsp;{settings.bonusSeconds}s</span>
         </label>
         <input
@@ -362,14 +369,14 @@ function SettingsPanel({
 
       {!isHost && (
         <p className="rp-host-only-note">
-          â  Chá»‰ chá»§ phĂ²ng má»›i cĂ³ thá»ƒ thay Ä‘á»•i cĂ i Ä‘áº·t
+          Chỉ chủ phòng mới có thể thay đổi cài đặt.
         </p>
       )}
     </div>
   );
 }
 
-// â”€â”€ Main Page â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Main Page
 
 function RoomPage() {
   const navigate   = useNavigate();
@@ -410,19 +417,36 @@ function RoomPage() {
     .every((p) => p.isReady);
   const canStart = isHost && hasEnoughPlayers && allGuestsReady;
 
-  // â”€â”€ Setting updater â”€â”€
+  // Settings updater
 
   const updateSetting = <K extends keyof RoomSettings>(
     key: K,
     value: RoomSettings[K]
   ) => {
     setSettings((prev) => ({ ...prev, [key]: value }));
+
     if (key === "roomName") {
       setRoom((r) => ({ ...r, name: value as string }));
     }
+
+    if (key === "hostColor") {
+      const nextHostColor = resolveHostColor(value as RoomSettings["hostColor"]);
+      const nextGuestColor = getOppositeColor(nextHostColor);
+
+      setRoom((prev) => ({
+        ...prev,
+        players: prev.players.map((player) => {
+          if (player.isHost) {
+            return { ...player, color: nextHostColor };
+          }
+
+          return { ...player, color: nextGuestColor };
+        }),
+      }));
+    }
   };
 
-  // â”€â”€ Handlers â”€â”€
+  // Handlers
 
   const handleToggleReady = () => {
     setRoom((prev) => ({
@@ -435,16 +459,32 @@ function RoomPage() {
 
   const handleStart = () => {
     if (!canStart) {
-      alert("ChÆ°a Ä‘á»§ Ä‘iá»u kiá»‡n Ä‘á»ƒ báº¯t Ä‘áº§u tráº­n.");
+      alert("Chưa đủ điều kiện để bắt đầu trận.");
       return;
     }
+
+    const selectedPlayerColor = currentPlayer?.color ?? "white";
+    const opponent = room.players.find((player) => player.id !== CURRENT_USER_ID);
+    const selectedTimeControl =
+      settings.timeControl === "custom" ? settings.customMinutes : settings.timeControl;
+
     navigate("/board", {
-      state: { roomId: room.id, roomName: room.name, roomCode: room.code },
+      state: {
+        roomId: room.id,
+        roomName: room.name,
+        roomCode: room.code,
+        playerColor: selectedPlayerColor,
+        opponentName: opponent?.displayName,
+        playerElo: currentPlayer?.rating,
+        opponentElo: opponent?.rating,
+        timeControl: selectedTimeControl,
+        bonusSeconds: settings.bonusSeconds,
+      },
     });
   };
 
   const handleLeave = () => {
-    //{Náº¿u vĂ o tá»« chÆ¡i nhanh thĂ¬ quay vá» Lobby, ngÆ°á»£c láº¡i vá» danh sĂ¡ch phĂ²ng}
+    // Quick match returns to the lobby; custom rooms return to the room list.
     const target = routeState?.source === "quick-join" ? "/lobby" : "/rooms";
     navigate(target);
   };
@@ -452,9 +492,9 @@ function RoomPage() {
   const handleCopyCode = async () => {
     try {
       await navigator.clipboard.writeText(room.code);
-      alert("ÄĂ£ copy mĂ£ phĂ²ng!");
+      alert("Đã copy mã phòng!");
     } catch {
-      alert("KhĂ´ng thá»ƒ copy mĂ£ phĂ²ng.");
+      alert("Không thể copy mã phòng.");
     }
   };
 
@@ -465,20 +505,20 @@ function RoomPage() {
     <div className="room-page">
       <div className="room-desktop">
 
-        {/* â”€â”€ TOPBAR â”€â”€ */}
+        {/* Top bar */}
         <header className="room-topbar">
           <button
             type="button"
             className="room-logo-box"
             onClick={handleLeave}
-            aria-label="Quay vá»"
+            aria-label="Quay về"
           >
             <img src={logoImage} alt="Zess Online Chess" />
           </button>
 
           <div className="room-topbar-center">
             <div className="room-topbar-info-item">
-              <span className="room-topbar-label">MĂ£ phĂ²ng</span>
+              <span className="room-topbar-label">Mã phòng</span>
               <div className="room-topbar-code-row">
                 <strong className="room-topbar-code">{room.code}</strong>
                 <button
@@ -494,14 +534,14 @@ function RoomPage() {
             <div className="room-topbar-sep" />
 
             <div className="room-topbar-info-item">
-              <span className="room-topbar-label">TĂªn phĂ²ng</span>
+              <span className="room-topbar-label">Tên phòng</span>
               <span className="room-topbar-name">{room.name}</span>
             </div>
 
             <div className="room-topbar-sep" />
 
             <div className="room-topbar-info-item">
-              <span className="room-topbar-label">NgÆ°á»i chÆ¡i</span>
+              <span className="room-topbar-label">Người chơi</span>
               <span className="room-topbar-name">
                 {playerCount}/{room.maxPlayers}
               </span>
@@ -510,11 +550,11 @@ function RoomPage() {
 
           <div className={`room-topbar-status ${canStart ? "room-topbar-status--ready" : ""}`}>
             <span className="room-status-dot" />
-            {canStart ? "Sáºµn sĂ ng báº¯t Ä‘áº§u" : "Äang chá» ngÆ°á»i chÆ¡i"}
+            {canStart ? "Sẵn sàng bắt đầu" : "Đang chờ người chơi"}
           </div>
         </header>
 
-        {/* â”€â”€ BODY â”€â”€ */}
+        {/* Body */}
         <main className="room-body">
 
           {/* LEFT: players + chat */}
@@ -551,7 +591,7 @@ function RoomPage() {
                   className="rp-btn rp-btn--ready"
                   onClick={handleToggleReady}
                 >
-                  {currentPlayer?.isReady ? "âŸ³ Há»§y sáºµn sĂ ng" : "âœ“ Sáºµn sĂ ng"}
+                  {currentPlayer?.isReady ? "Hủy sẵn sàng" : "✓ Sẵn sàng"}
                 </button>
               )}
 
@@ -562,11 +602,11 @@ function RoomPage() {
                 disabled={!canStart}
                 title={
                   !canStart
-                    ? "Cáº§n Ä‘á»§ 2 ngÆ°á»i vĂ  Ä‘á»‘i thá»§ Ä‘Ă£ sáºµn sĂ ng"
+                    ? "Cần đủ 2 người và đối thủ đã sẵn sàng"
                     : undefined
                 }
               >
-                â–¶ Báº¯t Ä‘áº§u vĂ¡n Ä‘áº¥u
+                Bắt đầu ván đấu
               </button>
 
               <button
@@ -574,7 +614,7 @@ function RoomPage() {
                 className="rp-btn rp-btn--leave"
                 onClick={handleLeave}
               >
-                â† Rá»i phĂ²ng
+                Rời phòng
               </button>
             </div>
 

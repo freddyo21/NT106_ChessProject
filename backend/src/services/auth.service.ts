@@ -1,9 +1,11 @@
-import { InvalidCredentialException } from "../exceptions";
+import { Exception, InvalidCredentialException } from "../exceptions";
 import * as userRepository from "../repositories/user.repository";
 import { generateToken, generateRefreshToken, verifyRefreshToken, revokeRefreshToken } from "../utils/jwt-handler";
 import { LoginRequestDTO, LoginRequestSchema, RegisterRequestDTO, RegisterRequestSchema, UserResponseSchema, UserSchema } from "@zess-online-chess/shared";
 import { comparePassword, hashPassword } from "../utils/hash";
 import { ZodError } from "zod";
+import crypto from "crypto";
+import ms from "ms";
 
 const ACCESS_TOKEN_EXPIRY = "15m";
 const REFRESH_TOKEN_EXPIRY = "7d";
@@ -40,7 +42,7 @@ export const login = async (data: LoginRequestDTO) => {
             throw error;
         }
 
-        throw new Error("Authentication service failed");
+        throw new Exception("Authentication service failed");
     }
 };
 
@@ -117,13 +119,10 @@ export const logout = async (refreshToken: string) => {
 // Store for password reset tokens (should use Redis in production)
 const resetTokenStore = new Map<string, { userId: string; expiresAt: number }>();
 
-const RESET_TOKEN_EXPIRY = "15m"; // 15 minutes
+const RESET_TOKEN_EXPIRY = ms("15m"); // 15 minutes
 
 const generateResetToken = (): string => {
-    const randomBytes = crypto.getRandomValues(new Uint8Array(32));
-    return Array.from(randomBytes)
-        .map((byte) => byte.toString(16).padStart(2, "0"))
-        .join("");
+    return crypto.randomBytes(32).toString("hex");
 };
 
 const cleanupExpiredResetTokens = () => {
@@ -142,7 +141,7 @@ export const forgotPassword = async (email: string) => {
 
     if (user) {
         const resetToken = generateResetToken();
-        const expiresAtMs = Date.now() + 15 * 60 * 1000; // 15 minutes
+        const expiresAtMs = Date.now() + RESET_TOKEN_EXPIRY * 60 * 1000;
 
         resetTokenStore.set(resetToken, {
             userId: user.id,

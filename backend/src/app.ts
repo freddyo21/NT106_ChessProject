@@ -27,7 +27,17 @@ async function initializeApp() {
     httpServer = createServer(app);
     await socketInitialize(httpServer);
 
-    const PORT = process.env.PORT || 3000;
+    const portArgIndex = process.argv.indexOf("--port");
+    if (portArgIndex === -1 || portArgIndex === process.argv.length - 1) {
+        console.warn("No port specified, defaulting to 3000");
+    }
+
+    const portArg =
+        portArgIndex !== -1 && portArgIndex < process.argv.length - 1
+            ? process.argv[portArgIndex + 1]
+            : undefined;
+    const PORT = portArg ? parseInt(portArg, 10) : 3000;
+
     return new Promise<void>((resolve, reject) => {
         httpServer!.listen(PORT, () => {
             console.log(`Zess Chess System is running on port ${PORT}`);

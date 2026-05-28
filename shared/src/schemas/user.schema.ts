@@ -51,7 +51,7 @@ export const UpdateUserRequestSchema = UserSchema.pick({
 }).partial().strict();
 
 export const ChangePasswordRequestSchema = z.object({
-    oldPassword: z.string().min(1), // Không cần min(8) ở đây, cứ có là được để check
+    currentPassword: z.string().min(1), // Không cần min(8) ở đây, cứ có là được để check
     newPassword: z.string()
         .min(8, "New password must be at least 8 characters")
         .max(50, "Password too long"),
@@ -59,7 +59,7 @@ export const ChangePasswordRequestSchema = z.object({
 }).strict().refine((data) => data.newPassword === data.confirmPassword, {
     message: "Passwords don't match",
     path: ["confirmPassword"], // Báo lỗi đúng vào field confirm
-}).refine((data) => data.oldPassword !== data.newPassword, {
-    message: "New password must be different from the old one",
+}).refine((data) => data.currentPassword !== data.newPassword, {
+    message: "New password must be different from the current one",
     path: ["newPassword"],
 });

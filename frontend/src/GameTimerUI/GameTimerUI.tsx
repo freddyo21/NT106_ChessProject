@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import "./GameTimer.css";
+import "./GameTimerUI.css";
 
 type PlayerColor = "white" | "black";
 

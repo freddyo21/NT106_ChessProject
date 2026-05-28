@@ -1,5 +1,5 @@
 ﻿import "./OnlinePlayers.css";
-import { getRankByElo, type EloRankDivision, type EloRankTier } from "@zess-online-chess/shared";
+import { getRankByElo, EloRankDivision, EloRankTier } from "@zess-online-chess/shared";
 import BronzeBadge from "../Image/PNG_BadgeRank/Bronze.svg";
 import GoldBadge from "../Image/PNG_BadgeRank/Gold.svg";
 import MasterBadge from "../Image/PNG_BadgeRank/Master.svg";
@@ -19,8 +19,6 @@ export type OnlinePlayer = {
   subtitle?: string;
   activityText?: string;
   avatarUrl?: string;
-
-  //{giáº£i thĂ­ch code} Giá»¯ láº¡i Ä‘á»ƒ sau nĂ y backend cĂ³ thá»ƒ tráº£ rank náº¿u cáº§n, nhÆ°ng hiá»‡n táº¡i UI sáº½ tá»± tĂ­nh theo Elo.
   rankTier?: OnlinePlayerRankTier;
   rankText?: string;
 };
@@ -30,7 +28,6 @@ type OnlinePlayersProps = {
 };
 
 function getAvatarText(displayName: string) {
-  //{giáº£i thĂ­ch code} Láº¥y 2 kĂ½ tá»± Ä‘áº§u lĂ m avatar náº¿u ngÆ°á»i chÆ¡i chÆ°a cĂ³ áº£nh Ä‘áº¡i diá»‡n.
   const words = displayName.trim().split(/\s+/).filter(Boolean);
 
   if (words.length >= 2) {
@@ -41,7 +38,6 @@ function getAvatarText(displayName: string) {
 }
 
 function getRankBadgeSrc(rankTier: OnlinePlayerRankTier) {
-  //{giáº£i thĂ­ch code} Hiá»‡n táº¡i má»—i nhĂ³m rank dĂ¹ng 1 badge Ä‘áº¡i diá»‡n, báº­c I/II/III hiá»ƒn thá»‹ báº±ng chá»¯ bĂªn cáº¡nh.
   switch (rankTier) {
     case "bronze":
       return BronzeBadge;
@@ -61,19 +57,18 @@ function getRankBadgeSrc(rankTier: OnlinePlayerRankTier) {
 }
 
 function getStatusText(status: OnlinePlayerStatus) {
-  //{giáº£i thĂ­ch code} Chuyá»ƒn status ká»¹ thuáº­t thĂ nh text dá»… hiá»ƒu cho tooltip.
   switch (status) {
     case "online":
-      return "Äang online";
+      return "Đang online";
 
     case "playing":
-      return "Äang Ä‘áº¥u";
+      return "Đang đấu";
 
     case "idle":
-      return "Äang chá»";
+      return "Đang chờ";
 
     default:
-      return "KhĂ´ng rĂµ tráº¡ng thĂ¡i";
+      return "Không rõ trạng thái";
   }
 }
 
@@ -82,7 +77,7 @@ function OnlinePlayers({ players }: OnlinePlayersProps) {
     <div className="op-panel">
       <div className="op-header">
         <span className="op-kicker">User Online</span>
-        <span className="op-count" title={`${players.length} ngÆ°á»i chÆ¡i online`}>
+        <span className="op-count" title={`${players.length} người chơi online`}>
           {players.length}
         </span>
       </div>
@@ -90,7 +85,6 @@ function OnlinePlayers({ players }: OnlinePlayersProps) {
       <div className="op-list">
         {players.length > 0 ? (
           players.map((player) => {
-            //{giáº£i thĂ­ch code} Rank hiá»‡n táº¡i Ä‘Æ°á»£c tĂ­nh trá»±c tiáº¿p tá»« Elo Ä‘á»ƒ trĂ¡nh mock thá»§ cĂ´ng sai logic.
             const resolvedRank = getRankByElo(player.elo);
             const rankBadgeSrc = getRankBadgeSrc(resolvedRank.tier);
 
@@ -160,7 +154,7 @@ function OnlinePlayers({ players }: OnlinePlayersProps) {
             );
           })
         ) : (
-          <div className="op-empty">ChÆ°a cĂ³ ngÆ°á»i chÆ¡i nĂ o online.</div>
+          <div className="op-empty">Chưa có người chơi nào online.</div>
         )}
       </div>
     </div>

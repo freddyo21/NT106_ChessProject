@@ -75,7 +75,7 @@ export const createInvitationCode = async (roomId: string) => {
         return { code, expiresAt };
     }
 
-    cleanupExpiredMemoryInviteCodes();
+    cleanupExpiredInviteCodes();
 
     while (inviteCodes.has(code) && attempts < 5) {
         code = generateInviteCode();

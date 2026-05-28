@@ -1,9 +1,9 @@
 import { NextFunction, Request, Response } from "express";
 import { verifyInvitationCode } from "../services/gameplay.service";
-import { invitationParametersSchema } from "@zess-online-chess/shared";
+import { InvitationParametersSchema } from "@zess-online-chess/shared";
 
 export const verifyInvite = async (req: Request, res: Response, next: NextFunction) => {
-    const result = invitationParametersSchema.safeParse(req.params);
+    const result = InvitationParametersSchema.safeParse(req.params);
 
     if (!result.success) {
         return res.status(400).json({

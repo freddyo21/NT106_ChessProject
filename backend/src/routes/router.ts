@@ -5,7 +5,7 @@ import { authMiddleware } from "../middlewares/auth.middleware";
 
 const router: Router = Router();
 
-router.get("/ping", (req, res) => {
+router.post("/ping", (req, res) => {
     res.send({
         message: "Pong! Backend is alive!",
         timestamp: new Date().toISOString()

@@ -1,176 +1,211 @@
-/*{Khung tổng của thanh trạng thái trận đấu}*/
-.game-status-container {
+.game-timer {
   width: 100%;
   max-width: 100%;
-  min-height: 78px;
-  margin: 0 0 16px 0;
-  padding: 16px 18px;
+  padding: 18px;
+  border: 1px solid rgba(113, 128, 150, 0.22);
+  border-radius: 18px;
+  box-sizing: border-box;
+  background:
+    linear-gradient(180deg, rgba(17, 24, 39, 0.94), rgba(7, 12, 24, 0.98)),
+    radial-gradient(circle at top left, rgba(20, 184, 166, 0.16), transparent 34%);
+  color: #f8fafc;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.24);
+}
+
+.game-timer__header,
+.game-timer__card-top,
+.game-timer__footer {
   display: flex;
   align-items: center;
-  gap: 14px;
-  box-sizing: border-box;
-  border-radius: 16px;
-  border: 1px solid rgba(77, 139, 255, 0.18);
-  background: linear-gradient(180deg, rgba(10, 23, 56, 0.96) 0%, rgba(9, 18, 42, 0.98) 100%);
-  box-shadow:
-    0 10px 28px rgba(0, 0, 0, 0.24),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.02);
+  justify-content: space-between;
+  gap: 12px;
 }
 
-/*{Vạch màu bên trái để phân biệt nhanh từng loại trạng thái}*/
-.game-status-container::before {
-  content: "";
-  align-self: stretch;
-  width: 4px;
+.game-timer__header {
+  margin-bottom: 18px;
+}
+
+.game-timer__eyebrow {
+  margin: 0 0 5px;
+  color: #67e8f9;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.game-timer__title {
+  margin: 0;
+  color: #f8fafc;
+  font-size: 22px;
+  line-height: 1.2;
+}
+
+.game-timer__status {
+  flex-shrink: 0;
+  min-width: 96px;
+  padding: 8px 10px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.18);
+  text-align: center;
+  font-size: 13px;
+  font-weight: 800;
 }
 
-/*{Chấm tròn nhỏ phía trái nội dung}*/
-.game-status-indicator {
+.game-timer__status.is-running {
+  background: rgba(34, 197, 94, 0.14);
+  color: #86efac;
+  border: 1px solid rgba(34, 197, 94, 0.35);
+}
+
+.game-timer__status.is-paused {
+  background: rgba(148, 163, 184, 0.12);
+  color: #cbd5e1;
+  border: 1px solid rgba(148, 163, 184, 0.26);
+}
+
+.game-timer__body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: stretch;
+  gap: 14px;
+}
+
+.game-timer__card {
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 16px;
+  background: rgba(15, 23, 42, 0.74);
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    transform 0.2s ease;
+}
+
+.game-timer__card.is-active {
+  border-color: rgba(20, 184, 166, 0.65);
+  box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.12);
+}
+
+.game-timer__card.is-low {
+  border-color: rgba(245, 158, 11, 0.55);
+}
+
+.game-timer__card.is-critical {
+  border-color: rgba(239, 68, 68, 0.62);
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.12);
+}
+
+.game-timer__player {
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #dbeafe;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.game-timer__dot {
   width: 12px;
   height: 12px;
   border-radius: 50%;
   flex-shrink: 0;
-  background: #94a3b8;
-  box-shadow: 0 0 12px rgba(148, 163, 184, 0.35);
+  border: 1px solid rgba(148, 163, 184, 0.42);
 }
 
-/*{Khối chứa tiêu đề và mô tả}*/
-.game-status-content {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
+.game-timer__dot--white {
+  background: #f8fafc;
 }
 
-/*{Tiêu đề trạng thái}*/
-.game-status-content h3 {
-  margin: 0 0 4px;
-  font-size: 28px;
-  font-weight: 700;
-  line-height: 1.1;
+.game-timer__dot--black {
+  background: #111827;
+}
+
+.game-timer__label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.game-timer__badge {
+  flex-shrink: 0;
+  padding: 5px 8px;
+  border-radius: 999px;
+  background: rgba(20, 184, 166, 0.16);
+  color: #5eead4;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.game-timer__time {
+  margin-top: 16px;
   color: #ffffff;
+  font-family: 'Be Vietnam Pro', Arial, sans-serif;
+  font-size: clamp(34px, 6vw, 56px);
+  font-weight: 900;
+  line-height: 1;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
 }
 
-/*{Mô tả phụ bên dưới tiêu đề}*/
-.game-status-content p {
-  margin: 0;
+.game-timer__hint {
+  margin: 12px 0 0;
+  color: #b6c2d6;
   font-size: 14px;
-  line-height: 1.45;
-  color: #bfd2ff;
+  text-align: center;
 }
 
-/*{Trạng thái: đang chờ đối thủ}*/
-.game-status-container.waiting::before {
-  background: #64748b;
+.game-timer__divider {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #94a3b8;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
 }
 
-.game-status-container.waiting .game-status-indicator {
-  background: #94a3b8;
-  box-shadow: 0 0 12px rgba(148, 163, 184, 0.35);
+.game-timer__divider span {
+  display: inline-flex;
+  width: 42px;
+  height: 42px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  background: rgba(15, 23, 42, 0.86);
 }
 
-/*{Trạng thái: đến lượt bạn}*/
-.game-status-container.your-turn::before {
-  background: #22c55e;
+.game-timer__footer {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(148, 163, 184, 0.16);
+  color: #cbd5e1;
+  font-size: 14px;
+  font-weight: 700;
 }
 
-.game-status-container.your-turn .game-status-indicator {
-  background: #22c55e;
-  box-shadow: 0 0 12px rgba(34, 197, 94, 0.45);
-}
-
-/*{Trạng thái: chờ đối thủ đi}*/
-.game-status-container.opponent-turn::before {
-  background: #3b82f6;
-}
-
-.game-status-container.opponent-turn .game-status-indicator {
-  background: #3b82f6;
-  box-shadow: 0 0 12px rgba(59, 130, 246, 0.45);
-}
-
-/*{Trạng thái: chiếu tướng}*/
-.game-status-container.check::before {
-  background: #f59e0b;
-}
-
-.game-status-container.check .game-status-indicator {
-  background: #f59e0b;
-  box-shadow: 0 0 12px rgba(245, 158, 11, 0.45);
-}
-
-/*{Trạng thái: chiếu bí}*/
-.game-status-container.checkmate::before {
-  background: #ef4444;
-}
-
-.game-status-container.checkmate .game-status-indicator {
-  background: #ef4444;
-  box-shadow: 0 0 12px rgba(239, 68, 68, 0.48);
-}
-
-/*{Trạng thái: hòa}*/
-.game-status-container.draw::before {
-  background: #a855f7;
-}
-
-.game-status-container.draw .game-status-indicator {
-  background: #a855f7;
-  box-shadow: 0 0 12px rgba(168, 85, 247, 0.45);
-}
-
-/*{Trạng thái: đối thủ mất kết nối}*/
-.game-status-container.disconnected::before {
-  background: #f97316;
-}
-
-.game-status-container.disconnected .game-status-indicator {
-  background: #f97316;
-  box-shadow: 0 0 12px rgba(249, 115, 22, 0.45);
-}
-/*{Trạng thái: đầu hàng}*/
-.game-status-container.resigned::before {
-  background: #dc2626;
-}
-
-.game-status-container.resigned .game-status-indicator {
-  background: #dc2626;
-  box-shadow: 0 0 12px rgba(220, 38, 38, 0.45);
-}
-
-/*{Trạng thái: thắng vì đối phương hết giờ}*/
-.game-status-container.timeout-win::before {
-  background: #22c55e;
-}
-
-.game-status-container.timeout-win .game-status-indicator {
-  background: #22c55e;
-  box-shadow: 0 0 12px rgba(34, 197, 94, 0.5);
-}
-
-/*{Trạng thái: thua vì hết giờ}*/
-.game-status-container.timeout-loss::before {
-  background: #ef4444;
-}
-
-.game-status-container.timeout-loss .game-status-indicator {
-  background: #ef4444;
-  box-shadow: 0 0 12px rgba(239, 68, 68, 0.48);
-}
-
-/*{Responsive cho màn hình nhỏ hơn}*/
-@media (max-width: 768px) {
-  .game-status-container {
-    padding: 14px 16px;
-    border-radius: 14px;
+@media (max-width: 760px) {
+  .game-timer {
+    padding: 14px;
+    border-radius: 16px;
   }
 
-  .game-status-content h3 {
-    font-size: 22px;
+  .game-timer__header {
+    align-items: flex-start;
+    flex-direction: column;
   }
 
-  .game-status-content p {
-    font-size: 13px;
+  .game-timer__status {
+    min-width: 0;
+  }
+
+  .game-timer__body {
+    grid-template-columns: 1fr;
+  }
+
+  .game-timer__divider {
+    min-height: 32px;
   }
 }

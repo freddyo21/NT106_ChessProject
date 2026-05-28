@@ -2,30 +2,10 @@ import { pool } from "../config/database.config";
 import * as gameRepository from "../repositories/game.repository";
 import { getPlayerStats } from "./match-history.service";
 import { Exception } from "../exceptions";
-
-//---Types----------------
-
-export interface PlayerProfile {
-    id: string;
-    username: string;
-    avatarUrl: string | null;
-    bio: string | null;
-    isOnline: boolean;
-    status: "offline" | "online" | "in_game";
-    lastSeenAt: Date | null;
-    createdAt: Date;
-    rating: number;
-    wins: number;
-    losses: number;
-    draws: number;
-    gamesPlayed: number;
-}
-
-export interface UpdateProfileData {
-    username?: string;
-    avatarUrl?: string;
-    bio?: string;
-}
+import type {
+    PlayerProfile,
+    UpdateProfileData,
+} from "../types/Profile";
 
 //--------Service Functions--------
 

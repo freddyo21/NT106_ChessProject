@@ -1,24 +1,10 @@
 import { Logger } from "../utils/Logger";
 import * as gameRepository from "../repositories/game.repository";
-
+import type { PieceColor } from "../types/GameResult";
+import type { TimeControlType } from "../types/TimeControl";
+import type { TimeControl, TimerSnapshot } from "../types/Timer";
 const logger = new Logger("timer-service");
 
-//-----Types--------
-export type TimeControlType = "bullet" | "blitz" | "rapid" | "classical";
-export type PieceColor = "white" | "black";
- 
-export interface TimeControl {
-    type: TimeControlType;
-    initialTimeSeconds: number;
-    incrementSeconds: number;
-}
- 
-export interface TimerSnapshot {
-    whiteTimeLeft: number;
-    blackTimeLeft: number;
-    currentTurn: PieceColor;
-    updatedAt: number; // Date.now()
-}
 
 interface TimerState {
     gameId: string;

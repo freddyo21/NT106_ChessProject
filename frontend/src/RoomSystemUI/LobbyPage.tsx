@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { DEFAULT_ELO, getRankByElo } from "@zess-online-chess/shared";
+import { DEFAULT_ELO } from "@zess-online-chess/shared";
 import OnlinePlayers, { type OnlinePlayer } from "../OnlinePlayersUI/OnlinePlayers";
 import ChatUI, { type ChatMessage } from "../ChatUI/ChatUI";
 import coverImage from "../Image/Cover2.jpg";
@@ -51,7 +51,6 @@ function LobbyPage() {
   const currentUser = useMemo(() => getCurrentUser(), []);
   const currentElo = currentUser?.elo ?? DEFAULT_ELO;
   const currentDisplayName = currentUser ? getUserDisplayName(currentUser) : "";
-  const currentRank = useMemo(() => getRankByElo(currentElo), [currentElo]);
 
   useEffect(() => {
     if (!currentUser) {
@@ -228,7 +227,7 @@ function LobbyPage() {
               onClick={handleOpenPlayerProfile}
               title="Mở Profile"
             >
-              {currentUser.username} <span>|</span> {currentRank.text} · Elo {currentElo}
+              {currentUser.username} <span>|</span> Elo {currentElo}
             </button>
 
             <a

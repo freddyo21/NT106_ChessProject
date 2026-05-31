@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
-import { DEFAULT_ELO, ERoles, getEloRankLabel, getRankByElo } from "@zess-online-chess/shared";
+import { DEFAULT_ELO, ERoles } from "@zess-online-chess/shared";
 import "./ChessBoardUI.css";
 import GameStatusUI, { GameStatusType } from "../GameStatusUI/GameStatusUI";
 import ChatUI, { type ChatMessage } from "../ChatUI/ChatUI";
@@ -585,9 +585,6 @@ function ChessPlayerCard({
   timeMs: number; isActive: boolean; isTimerRunning: boolean;
 }) {
   const resolvedElo = elo ?? DEFAULT_ELO;
-  // Board badges use the shared Elo-rank mapping so they match Lobby and OnlinePlayers.
-  const rank = getRankByElo(resolvedElo);
-  const label = getEloRankLabel(resolvedElo);
   const isLow      = timeMs > 0 && timeMs <= 30_000;
   const isCritical = timeMs > 0 && timeMs <= 10_000;
 
@@ -597,7 +594,7 @@ function ChessPlayerCard({
       <div className="cb-player-info">
         <p className="cb-player-name">{name}</p>
         <div className="cb-player-meta">
-          <span className={`cb-elo-badge ${rank.tier}`}>{label}</span>
+          <span className="cb-elo-badge">Elo {resolvedElo}</span>
           <span className="cb-color-label">{colorSide === "white" ? "♔ Trắng" : "♚ Đen"}</span>
         </div>
       </div>

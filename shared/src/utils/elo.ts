@@ -4,14 +4,6 @@ export const PROVISIONAL_GAMES_THRESHOLD = 20;
 
 export type EloScore = 0 | 0.5 | 1;
 export type EloGameResult = "win" | "loss" | "draw";
-export type EloRankTier = "bronze" | "silver" | "gold" | "master";
-export type EloRankDivision = 1 | 2 | 3;
-
-export type EloRank = {
-    tier: EloRankTier;
-    division: EloRankDivision;
-    text: string;
-};
 
 type EloInput = {
     playerElo: number;
@@ -33,7 +25,7 @@ export function getEloKFactor(gamesPlayed = 0, playerElo = DEFAULT_ELO) {
         return 40;
     }
 
-    // Người chơi Elo cao biến động ít hơn để tránh rank top nhảy quá mạnh.
+    // Nguoi choi Elo cao bien dong it hon de tranh diem o nhom dau nhay qua manh.
     if (playerElo >= 2000) {
         return 16;
     }
@@ -109,57 +101,4 @@ export function calculateMatchElo(params: {
         whiteDelta: whiteNextElo - params.whiteElo,
         blackDelta: blackNextElo - params.blackElo,
     };
-}
-
-export function getRankByElo(elo: number): EloRank {
-    // Mapping rank dùng chung cho toàn app: mỗi 100 Elo lên một bậc III -> II -> I.
-    if (elo >= 2100) {
-        return { tier: "master", division: 1, text: "Master I" };
-    }
-
-    if (elo >= 2000) {
-        return { tier: "master", division: 2, text: "Master II" };
-    }
-
-    if (elo >= 1900) {
-        return { tier: "master", division: 3, text: "Master III" };
-    }
-
-    if (elo >= 1800) {
-        return { tier: "gold", division: 1, text: "Vàng I" };
-    }
-
-    if (elo >= 1700) {
-        return { tier: "gold", division: 2, text: "Vàng II" };
-    }
-
-    if (elo >= 1600) {
-        return { tier: "gold", division: 3, text: "Vàng III" };
-    }
-
-    if (elo >= 1500) {
-        return { tier: "silver", division: 1, text: "Bạc I" };
-    }
-
-    if (elo >= 1400) {
-        return { tier: "silver", division: 2, text: "Bạc II" };
-    }
-
-    if (elo >= 1300) {
-        return { tier: "silver", division: 3, text: "Bạc III" };
-    }
-
-    if (elo >= 1200) {
-        return { tier: "bronze", division: 1, text: "Đồng I" };
-    }
-
-    if (elo >= 1100) {
-        return { tier: "bronze", division: 2, text: "Đồng II" };
-    }
-
-    return { tier: "bronze", division: 3, text: "Đồng III" };
-}
-
-export function getEloRankLabel(elo: number) {
-    return `${getRankByElo(elo).text} · ${elo}`;
 }

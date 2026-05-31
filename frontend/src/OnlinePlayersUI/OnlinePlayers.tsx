@@ -1,15 +1,6 @@
 ﻿import "./OnlinePlayers.css";
-import { getRankByElo, EloRankDivision, EloRankTier } from "@zess-online-chess/shared";
-import BronzeBadge from "../Image/PNG_BadgeRank/Bronze.svg";
-import GoldBadge from "../Image/PNG_BadgeRank/Gold.svg";
-import MasterBadge from "../Image/PNG_BadgeRank/Master.svg";
-import SilverBadge from "../Image/PNG_BadgeRank/Siver.svg";
 
 export type OnlinePlayerStatus = "online" | "playing" | "idle";
-
-export type OnlinePlayerRankTier = EloRankTier;
-
-export type OnlinePlayerRankDivision = EloRankDivision;
 
 export type OnlinePlayer = {
   id: string;
@@ -19,8 +10,7 @@ export type OnlinePlayer = {
   subtitle?: string;
   activityText?: string;
   avatarUrl?: string;
-  rankTier?: OnlinePlayerRankTier;
-  rankText?: string;
+
 };
 
 type OnlinePlayersProps = {
@@ -28,6 +18,7 @@ type OnlinePlayersProps = {
 };
 
 function getAvatarText(displayName: string) {
+  // Use initials when a player does not have an avatar image.
   const words = displayName.trim().split(/\s+/).filter(Boolean);
 
   if (words.length >= 2) {
@@ -35,25 +26,6 @@ function getAvatarText(displayName: string) {
   }
 
   return displayName.slice(0, 2).toUpperCase();
-}
-
-function getRankBadgeSrc(rankTier: OnlinePlayerRankTier) {
-  switch (rankTier) {
-    case "bronze":
-      return BronzeBadge;
-
-    case "silver":
-      return SilverBadge;
-
-    case "gold":
-      return GoldBadge;
-
-    case "master":
-      return MasterBadge;
-
-    default:
-      return null;
-  }
 }
 
 function getStatusText(status: OnlinePlayerStatus) {
@@ -85,20 +57,15 @@ function OnlinePlayers({ players }: OnlinePlayersProps) {
       <div className="op-list">
         {players.length > 0 ? (
           players.map((player) => {
-            const resolvedRank = getRankByElo(player.elo);
-            const rankBadgeSrc = getRankBadgeSrc(resolvedRank.tier);
-
             const metaText = `Elo ${player.elo}${
-              player.subtitle ? ` Â· ${player.subtitle}` : ""
+              player.subtitle ? ` · ${player.subtitle}` : ""
             }`;
 
             return (
               <div
                 className="op-card"
                 key={player.id}
-                title={`${player.displayName} Â· ${resolvedRank.text} Â· ${getStatusText(
-                  player.status
-                )}`}
+                title={`${player.displayName} · Elo ${player.elo} · ${getStatusText(player.status)}`}
               >
                 <div className="op-avatar-wrap">
                   {player.avatarUrl ? (
@@ -123,19 +90,6 @@ function OnlinePlayers({ players }: OnlinePlayersProps) {
                   <div className="op-name-row">
                     <span className="op-name" title={player.displayName}>
                       {player.displayName}
-                    </span>
-
-                    {rankBadgeSrc && (
-                      <img
-                        src={rankBadgeSrc}
-                        alt={resolvedRank.text}
-                        title={resolvedRank.text}
-                        className="op-rank-badge"
-                      />
-                    )}
-
-                    <span className="op-rank-text" title={resolvedRank.text}>
-                      {resolvedRank.text}
                     </span>
                   </div>
 

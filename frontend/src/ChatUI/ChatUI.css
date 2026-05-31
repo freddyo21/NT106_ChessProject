@@ -2,6 +2,7 @@
 .chat-ui {
   width: 100%;
   max-width: 430px;
+  min-width: 0;
   height: 640px;
   display: flex;
   flex-direction: column;
@@ -15,7 +16,7 @@
     inset 0 1px 0 rgba(255, 255, 255, 0.04);
   backdrop-filter: blur(14px);
   color: #f3f4f6;
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: 'Be Vietnam Pro', Arial, sans-serif;
 }
 
 /*{Header của khung chat}*/
@@ -33,6 +34,7 @@
   display: flex;
   align-items: center;
   gap: 12px;
+  min-width: 0;
 }
 
 /*{Khung tròn chứa logo — tăng lên 52px để logo hiện rõ hơn}*/
@@ -84,6 +86,7 @@
 /*{Vùng hiển thị tin nhắn}*/
 .chat-ui__messages {
   flex: 1;
+  min-width: 0;
   padding: 18px 14px;
   overflow-y: auto;
   display: flex;
@@ -192,6 +195,8 @@
   position: relative;
   display: flex;
   align-items: center;
+  width: 100%;
+  min-width: 0;
   gap: 12px;
   padding: 14px;
   border-top: 1px solid rgba(255, 255, 255, 0.06);
@@ -201,6 +206,7 @@
 .chat-ui__input-wrapper {
   position: relative;
   flex: 1;
+  min-width: 0;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -212,6 +218,8 @@
 
 .chat-ui__textarea {
   flex: 1;
+  width: 100%;
+  min-width: 0;
   min-height: 24px;
   max-height: 110px;
   resize: none;
@@ -260,6 +268,7 @@
 
 .chat-ui__send-button {
   min-width: 88px;
+  white-space: nowrap;
   align-self: stretch;
   border: none;
   border-radius: 16px;

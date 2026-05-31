@@ -15,7 +15,7 @@ function getAuthenticatedUser() {
 }
 
 function createRandomRoomCode() {
-  //{giải thích code} Sinh mã phòng demo; sau này backend có thể trả roomCode thật thay vì frontend tự tạo.
+  //{giáº£i thĂ­ch code} Sinh mĂ£ phĂ²ng demo; sau nĂ y backend cĂ³ thá»ƒ tráº£ roomCode tháº­t thay vĂ¬ frontend tá»± táº¡o.
   const characters = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
   let result = "";
 
@@ -28,7 +28,7 @@ function createRandomRoomCode() {
 }
 
 function normalizeRoomCode(value: string) {
-  //{giải thích code} Chuẩn hóa mã phòng để tránh lỗi do viết thường hoặc dư khoảng trắng.
+  //{giáº£i thĂ­ch code} Chuáº©n hĂ³a mĂ£ phĂ²ng Ä‘á»ƒ trĂ¡nh lá»—i do viáº¿t thÆ°á»ng hoáº·c dÆ° khoáº£ng tráº¯ng.
   return value.trim().toUpperCase();
 }
 
@@ -111,21 +111,21 @@ function parseRoomJoinInput(value: string) {
 }
 
 function getStatusLabel(status: RoomStatus) {
-  //{giải thích code} Chuyển trạng thái kỹ thuật sang chữ tiếng Việt để hiển thị trên UI.
-  if (status === "waiting") return "Đang chờ";
-  if (status === "playing") return "Đang đấu";
-  return "Đã đầy";
+  //{giáº£i thĂ­ch code} Chuyá»ƒn tráº¡ng thĂ¡i ká»¹ thuáº­t sang chá»¯ tiáº¿ng Viá»‡t Ä‘á»ƒ hiá»ƒn thá»‹ trĂªn UI.
+  if (status === "waiting") return "Äang chá»";
+  if (status === "playing") return "Äang Ä‘áº¥u";
+  return "ÄĂ£ Ä‘áº§y";
 }
 
 function getStatusClass(status: RoomStatus) {
-  //{giải thích code} Trả class CSS riêng cho từng trạng thái phòng.
+  //{giáº£i thĂ­ch code} Tráº£ class CSS riĂªng cho tá»«ng tráº¡ng thĂ¡i phĂ²ng.
   if (status === "waiting") return "waiting";
   if (status === "playing") return "playing";
   return "full";
 }
 
 function canJoinRoom(room?: RoomListItem) {
-  //{giải thích code} Chỉ cho vào phòng đang chờ và còn slot; không có spectate nên phòng đang đấu/đã đầy bị khóa.
+  //{giáº£i thĂ­ch code} Chá»‰ cho vĂ o phĂ²ng Ä‘ang chá» vĂ  cĂ²n slot; khĂ´ng cĂ³ spectate nĂªn phĂ²ng Ä‘ang Ä‘áº¥u/Ä‘Ă£ Ä‘áº§y bá»‹ khĂ³a.
   return !!room && room.status === "waiting" && room.players < room.maxPlayers;
 }
 
@@ -153,7 +153,7 @@ function RoomListPage() {
     }
 
     const handleRoomsSnapshot = (nextRooms: SocketRoomListItem[]) => {
-      // Danh sách phòng lấy từ room-management socket, không dùng mock local nữa.
+      // Danh sĂ¡ch phĂ²ng láº¥y tá»« room-management socket, khĂ´ng dĂ¹ng mock local ná»¯a.
       setRooms(nextRooms);
       setSelectedRoomId((currentSelectedRoomId) =>
         nextRooms.some((room) => room.id === currentSelectedRoomId)
@@ -178,7 +178,7 @@ function RoomListPage() {
   }, []);
 
   const filteredRooms = useMemo(() => {
-    //{giải thích code} Lọc danh sách phòng theo tên phòng hoặc tên chủ phòng.
+    //{giáº£i thĂ­ch code} Lá»c danh sĂ¡ch phĂ²ng theo tĂªn phĂ²ng hoáº·c tĂªn chá»§ phĂ²ng.
     const keyword = searchKeyword.trim().toLowerCase();
 
     if (!keyword) {
@@ -194,7 +194,7 @@ function RoomListPage() {
   }, [rooms, searchKeyword]);
 
   const selectedRoom = useMemo(() => {
-    //{giải thích code} Lấy phòng đang được chọn để quyết định nút "Vào phòng" có được bấm hay không.
+    //{giáº£i thĂ­ch code} Láº¥y phĂ²ng Ä‘ang Ä‘Æ°á»£c chá»n Ä‘á»ƒ quyáº¿t Ä‘á»‹nh nĂºt "VĂ o phĂ²ng" cĂ³ Ä‘Æ°á»£c báº¥m hay khĂ´ng.
     return rooms.find((room) => room.id === selectedRoomId);
   }, [rooms, selectedRoomId]);
 
@@ -215,31 +215,31 @@ function RoomListPage() {
   };
 
   const handleBackToLobby = () => {
-    //{giải thích code} Quay về Lobby chính.
+    //{giáº£i thĂ­ch code} Quay vá» Lobby chĂ­nh.
     navigate("/lobby");
   };
 
   const handleRefreshRooms = () => {
     const socket = getAppSocket();
 
-    // Chủ động request snapshot mới từ backend socket.
+    // Chá»§ Ä‘á»™ng request snapshot má»›i tá»« backend socket.
     socket?.emit("rooms:list", (nextRooms) => {
       setRooms(nextRooms);
     });
   };
 
   const handleSelectRoom = (roomId: string) => {
-    //{giải thích code} Lưu phòng đang chọn để người dùng có thể bấm nút "Vào phòng".
+    //{giáº£i thĂ­ch code} LÆ°u phĂ²ng Ä‘ang chá»n Ä‘á»ƒ ngÆ°á»i dĂ¹ng cĂ³ thá»ƒ báº¥m nĂºt "VĂ o phĂ²ng".
     setSelectedRoomId(roomId);
   };
 
   const handleCreateRoom = () => {
     if (!currentUser) return;
 
-    // Tạo phòng bằng cách điều hướng vào board với roomId mới; board sẽ emit join_room và backend tạo room thật.
+    // Táº¡o phĂ²ng báº±ng cĂ¡ch Ä‘iá»u hÆ°á»›ng vĂ o board vá»›i roomId má»›i; board sáº½ emit join_room vĂ  backend táº¡o room tháº­t.
     const newRoom: RoomListItem = {
       id: `room-${Date.now()}`,
-      roomName: `Phòng của ${currentUser.username}`,
+      roomName: `PhĂ²ng cá»§a ${currentUser.username}`,
       roomCode: createRandomRoomCode(),
       hostName: currentUser.username,
       hostElo: currentUser.elo ?? DEFAULT_ELO,
@@ -252,14 +252,14 @@ function RoomListPage() {
   };
 
   const handleJoinSelectedRoom = () => {
-    // Join phòng đang chọn bằng board socket-backed.
+    // Join phĂ²ng Ä‘ang chá»n báº±ng board socket-backed.
     if (!selectedRoom) {
-      alert("Bạn chưa chọn phòng.");
+      alert("Báº¡n chÆ°a chá»n phĂ²ng.");
       return;
     }
 
     if (!canJoinRoom(selectedRoom)) {
-      alert("Phòng này không thể vào vì đã đầy hoặc đang đấu.");
+      alert("PhĂ²ng nĂ y khĂ´ng thá»ƒ vĂ o vĂ¬ Ä‘Ă£ Ä‘áº§y hoáº·c Ä‘ang Ä‘áº¥u.");
       return;
     }
 
@@ -267,11 +267,11 @@ function RoomListPage() {
   };
 
   const handleJoinByCode = () => {
-    // Join nhanh bằng mã hoặc link mời; link được tách code/roomId rồi dò trong snapshot socket hiện tại.
+    // Join nhanh báº±ng mĂ£ hoáº·c link má»i; link Ä‘Æ°á»£c tĂ¡ch code/roomId rá»“i dĂ² trong snapshot socket hiá»‡n táº¡i.
     const joinTarget = parseRoomJoinInput(roomCodeInput);
 
     if (!joinTarget) {
-      alert("Bạn chưa nhập mã phòng hoặc link phòng.");
+      alert("Báº¡n chÆ°a nháº­p mĂ£ phĂ²ng hoáº·c link phĂ²ng.");
       return;
     }
 
@@ -284,12 +284,12 @@ function RoomListPage() {
     });
 
     if (!matchedRoom) {
-      alert("Không tìm thấy phòng với mã hoặc link này.");
+      alert("KhĂ´ng tĂ¬m tháº¥y phĂ²ng vá»›i mĂ£ hoáº·c link nĂ y.");
       return;
     }
 
     if (!canJoinRoom(matchedRoom)) {
-      alert("Phòng này không thể vào vì đã đầy hoặc đang đấu.");
+      alert("PhĂ²ng nĂ y khĂ´ng thá»ƒ vĂ o vĂ¬ Ä‘Ă£ Ä‘áº§y hoáº·c Ä‘ang Ä‘áº¥u.");
       return;
     }
 
@@ -297,7 +297,7 @@ function RoomListPage() {
   };
 
   const handleDoubleClickRoom = (room: RoomListItem) => {
-    //{giải thích code} Cho phép double click vào phòng đang chờ để vào nhanh.
+    //{giáº£i thĂ­ch code} Cho phĂ©p double click vĂ o phĂ²ng Ä‘ang chá» Ä‘á»ƒ vĂ o nhanh.
     if (!canJoinRoom(room)) {
       return;
     }
@@ -313,14 +313,14 @@ function RoomListPage() {
             type="button"
             className="room-list-logo-box"
             onClick={handleBackToLobby}
-            aria-label="Quay về Lobby"
+            aria-label="Quay vá» Lobby"
           >
             <img src={logoImage} alt="Zess Online Chess Logo" />
           </button>
 
           <div className="room-list-heading">
             <p>ZESS ONLINE CHESS</p>
-            <h1>Danh sách phòng</h1>
+            <h1>Danh sĂ¡ch phĂ²ng</h1>
           </div>
         </header>
 
@@ -331,7 +331,7 @@ function RoomListPage() {
                 value={searchKeyword}
                 onChange={(event) => setSearchKeyword(event.target.value)}
                 className="room-list-search"
-                placeholder="Tìm theo tên phòng hoặc chủ phòng..."
+                placeholder="TĂ¬m theo tĂªn phĂ²ng hoáº·c chá»§ phĂ²ng..."
               />
 
               <div className="room-code-join-box">
@@ -339,13 +339,13 @@ function RoomListPage() {
                   value={roomCodeInput}
                   onChange={(event) => setRoomCodeInput(event.target.value)}
                   onKeyDown={(event) => {
-                    //{giải thích code} Cho phép nhấn Enter để vào phòng bằng mã hoặc link.
+                    //{giáº£i thĂ­ch code} Cho phĂ©p nháº¥n Enter Ä‘á»ƒ vĂ o phĂ²ng báº±ng mĂ£ hoáº·c link.
                     if (event.key === "Enter") {
                       handleJoinByCode();
                     }
                   }}
                   className="room-code-input"
-                  placeholder="Nhập mã hoặc link phòng..."
+                  placeholder="Nháº­p mĂ£ hoáº·c link phĂ²ng..."
                 />
 
                 <button
@@ -353,7 +353,7 @@ function RoomListPage() {
                   className="room-code-join-btn"
                   onClick={handleJoinByCode}
                 >
-                  Vào phòng
+                  VĂ o phĂ²ng
                 </button>
               </div>
             </div>
@@ -362,11 +362,11 @@ function RoomListPage() {
               <table className="room-list-table">
                 <thead>
                   <tr>
-                    <th>Tên phòng</th>
-                    <th>Chủ phòng</th>
+                    <th>TĂªn phĂ²ng</th>
+                    <th>Chá»§ phĂ²ng</th>
                     <th>Elo</th>
-                    <th>Người</th>
-                    <th>Trạng thái</th>
+                    <th>NgÆ°á»i</th>
+                    <th>Tráº¡ng thĂ¡i</th>
                   </tr>
                 </thead>
 
@@ -374,7 +374,7 @@ function RoomListPage() {
                   {filteredRooms.length === 0 ? (
                     <tr>
                       <td className="room-list-empty" colSpan={5}>
-                        Không tìm thấy phòng phù hợp.
+                        KhĂ´ng tĂ¬m tháº¥y phĂ²ng phĂ¹ há»£p.
                       </td>
                     </tr>
                   ) : (
@@ -427,7 +427,7 @@ function RoomListPage() {
                 className="room-list-action-btn secondary"
                 onClick={handleRefreshRooms}
               >
-                Làm mới
+                LĂ m má»›i
               </button>
 
               <button
@@ -435,7 +435,7 @@ function RoomListPage() {
                 className="room-list-action-btn primary"
                 onClick={handleCreateRoom}
               >
-                Tạo phòng mới
+                Táº¡o phĂ²ng má»›i
               </button>
 
               <button
@@ -443,7 +443,7 @@ function RoomListPage() {
                 className="room-list-action-btn back"
                 onClick={handleBackToLobby}
               >
-                Quay về sảnh
+                Quay vá» sáº£nh
               </button>
 
               <button
@@ -453,11 +453,11 @@ function RoomListPage() {
                 disabled={isJoinButtonDisabled}
                 title={
                   isJoinButtonDisabled
-                    ? "Chỉ có thể vào phòng đang chờ và còn slot"
-                    : "Vào phòng đã chọn"
+                    ? "Chá»‰ cĂ³ thá»ƒ vĂ o phĂ²ng Ä‘ang chá» vĂ  cĂ²n slot"
+                    : "VĂ o phĂ²ng Ä‘Ă£ chá»n"
                 }
               >
-                Vào phòng
+                VĂ o phĂ²ng
               </button>
             </div>
           </section>

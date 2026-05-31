@@ -1,5 +1,5 @@
 :root {
-  font-family: 'Be Vietnam Pro', Arial, sans-serif;
+  font-family: "Space Grotesk", "Trebuchet MS", sans-serif;
   color: #f5efe6;
   background:
     radial-gradient(circle at top left, rgba(236, 139, 74, 0.34), transparent 32%),
@@ -90,7 +90,7 @@ h1 {
 
 .lede span,
 .mono {
-  font-family: 'Be Vietnam Pro', Arial, sans-serif;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
 }
 
 .status-pill {

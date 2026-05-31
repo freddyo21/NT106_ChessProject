@@ -107,7 +107,7 @@ function LoginUI() {
       setAuthMode("login");
       setMessage({
         type: "success",
-        text: "Đăng ký thành công. Vui lòng đăng nhập.",
+        text: "Đăng ký thành công. Vui lòng đăng nhập sau khi tài khoản được xác thực.",
       });
     } catch (error) {
       setMessage({
@@ -268,7 +268,7 @@ function LoginUI() {
             <form className="auth-form" onSubmit={handleRegister}>
               <h2>Đăng ký</h2>
               <p className="auth-description">
-                Vui lòng nhập đầy đủ thông tin phía dưới để tạo tài khoản.
+                Tạo tài khoản bằng email để dùng Auth thật và kết nối WebSocket.
               </p>
 
               <label htmlFor="register-gmail">Email</label>

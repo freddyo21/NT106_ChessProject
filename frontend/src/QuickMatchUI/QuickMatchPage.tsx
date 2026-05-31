@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { DEFAULT_ELO } from "@zess-online-chess/shared";
+import { DEFAULT_ELO, getRankByElo } from "@zess-online-chess/shared";
 import {
   getAppSocket,
   getSocketToken,
@@ -37,6 +37,8 @@ function QuickMatchPage() {
 
   const playerName = routeState?.username ?? "Người chơi";
   const playerElo = getQuickMatchElo(routeState?.elo);
+  // Quick Match displays the same rank mapping as Lobby/Board/OnlinePlayers.
+  const playerRank = getRankByElo(playerElo);
 
   useEffect(() => {
     return () => {
@@ -95,7 +97,7 @@ function QuickMatchPage() {
             playerColor: payload.color,
             opponentName: payload.opponent.username,
             opponentElo: payload.opponent.elo,
-            // Board displays the authenticated player's current Elo.
+            // Board needs playerElo to render the same rank badge without reading stale demo storage.
             playerElo,
           },
         });
@@ -207,7 +209,7 @@ function QuickMatchPage() {
         </section>
 
         <div className="quick-match-player">
-          {playerName} <span>|</span> Elo {playerElo}
+          {playerName} <span>|</span> {playerRank.text} · Elo {playerElo}
         </div>
 
         <button

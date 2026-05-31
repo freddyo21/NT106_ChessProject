@@ -129,7 +129,24 @@
   text-overflow: ellipsis;
 }
 
-/* Elo and subtitle stay on one line. */
+.op-rank-badge {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+  flex: 0 0 22px;
+  display: block;
+  transform: translateY(1px);
+}
+
+.op-rank-text {
+  font-size: 11px;
+  font-weight: 600;
+  color: #93c5fd;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* Elo + subtitle trên 1 dòng */
 .op-meta {
   font-size: 11px;
   color: #6b7f9a;

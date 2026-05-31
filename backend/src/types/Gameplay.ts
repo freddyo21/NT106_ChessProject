@@ -1,5 +1,5 @@
 import { getGameRoom } from "../websocket/room-management.socket";
-import { TimerSnapshot } from "../services/timer.service";
+import type { TimerSnapshot } from "./Timer";
 
 export type GameRoom = NonNullable<ReturnType<typeof getGameRoom>>;
 export type RoomPlayer = GameRoom["players"][number];

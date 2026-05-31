@@ -1,35 +1,14 @@
 import * as gameRepository from "../repositories/game.repository";
 import { Logger } from "../utils/Logger";
+import type {
+    GameOverResult,
+    GameOverStatus as GameStatus,
+    IChessBoard,
+} from "../types/GameResultService";
+import type { PieceColor } from "../types/GameResult";
 
 const logger = new Logger("game-result-service");
 
-//-------Types----------
-
-export type PieceColor = "white" | "black";
-
-export type GameStatus = 
-    | {over: false }
-    | {over: true; result: gameRepository.GameResult; reason: gameRepository.TerminationReason };
-
-export interface GameOverResult {
-    result: gameRepository.GameResult;
-    reason: gameRepository.TerminationReason;
-    winnerId: string | null;
-    whiteRatingBefore: number;
-    blackRatingBefore: number;
-    whiteRatingAfter: number;
-    blackRatingAfter: number;
-    whiteRatingChange: number;
-    blackRatingChange: number;
-}
-
-// Interface tối thiểu cần từ ChessBoard để service có thể check
-export interface IChessBoard {
-    getGameStatus(): string; // "ongoing" | "checkmate" | "stalemate" | "draw" | ...
-    getCurrentTurn(): PieceColor;
-    isInsufficientMaterial(): boolean;
-    isFiftyMoveRule(): boolean;
-}
 
 //------ELO cal-----
 

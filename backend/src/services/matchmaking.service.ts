@@ -2,37 +2,15 @@ import { pool } from "../config/database.config";
 import { Logger } from "../utils/Logger";
 import { Exception } from "../exceptions";
 import * as gameRepository from "../repositories/game.repository";
+import type {
+    MatchmakingMode,
+    MatchmakingResult,
+    QueueEntry,
+} from "../types/MatchMaking"
+import type { TimeControlType } from "../types/TimeControl";
 
 const logger = new Logger("matchmaking-service");
 
-//--------------Types-------------------
-export type MatchmakingMode = "casual" | "ranked";
-export type TimeControlType = "bullet" | "blitz" | "rapid" | "classical";
- 
-export interface QueueEntry {
-    userId: string;
-    mode: MatchmakingMode;
-    timeControlType: TimeControlType;
-    ratingAtQueue: number;
-    createdAt: Date;
-}
- 
-export interface MatchFound {
-    matched: true;
-    gameId: string;
-    roomCode: string;
-    whitePlayerId: string;
-    blackPlayerId: string;
-    timeControlType: TimeControlType;
-    initialTimeSeconds: number;
-    incrementSeconds: number;
-}
- 
-export interface MatchNotFound {
-    matched: false;
-}
- 
-export type MatchmakingResult = MatchFound | MatchNotFound;
 
 //-------Time control presets-----------
 const TIME_CONTROL_PRESETS: Record<TimeControlType, { initialTimeSeconds: number; incrementSeconds: number }> = {

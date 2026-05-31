@@ -1,24 +1,13 @@
 import * as leaderboardRepository from "../repositories/leaderboard.repository";
-import { LeaderboardOptions } from "../repositories/leaderboard.repository";
-
-//-----------Types------------
-
-export interface LeaderboardPage {
-    entries: leaderboardRepository.LeaderboardEntry[];
-    total: number;
-    page: number;
-    pageSize: number;
-    totalPages: number;
-}
- 
-export interface PlayerLeaderboardInfo {
-    rank: number | null;
-    nearbyPlayers: leaderboardRepository.LeaderboardEntry[];
-}
+import type {
+    LeaderboardOptions,
+    LeaderboardPage,
+    PlayerLeaderboardInfo,
+} from "../types/LeaderBoard";
 
 //-----------Service Functions---------
 /**
- * Lấy bảng xếp hạng có phân trang
+ * Lay bang xep hang co phan trang
  */
 export const getLeaderboard = async (
     page = 1,
@@ -26,13 +15,13 @@ export const getLeaderboard = async (
     options: Omit<LeaderboardOptions, "limit" | "offset"> = {}
 ): Promise<LeaderboardPage> => {
     const offset = (page - 1) * pageSize;
- 
+
     const { entries, total } = await leaderboardRepository.getLeaderboard({
         ...options,
         limit: pageSize,
         offset,
     });
- 
+
     return {
         entries,
         total,
@@ -43,8 +32,8 @@ export const getLeaderboard = async (
 };
 
 /**
- * Lấy rank + context xung quanh của 1 người chơi
- * Dùng cho trang Profile hoặc sau khi kết thúc ván
+ * Lay rank + context xung quanh cua 1 nguoi choi
+ * Dung cho trang Profile hoac sau khi ket thuc van
  */
 export const getPlayerLeaderboardInfo = async (
     userId: string
@@ -53,12 +42,12 @@ export const getPlayerLeaderboardInfo = async (
         leaderboardRepository.getPlayerRank(userId),
         leaderboardRepository.getNearbyPlayers(userId, 5),
     ]);
- 
+
     return { rank, nearbyPlayers };
 };
 
 /**
- * Lấy top10 nhanh (dùng cho widget sidebar)
+ * Lay top10 nhanh dung cho widget sidebar
  */
 export const getTopTen = async () => {
     const { entries } = await leaderboardRepository.getLeaderboard({

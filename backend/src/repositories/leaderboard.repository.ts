@@ -1,26 +1,8 @@
 import { pool } from "../config/database.config";
-
-//-------Types--------
-
-export interface LeaderboardEntry {
-    rank: number;
-    userId: string;
-    username: string;
-    avatarUrl: string | null;
-    rating: number;
-    wins: number;
-    losses: number;
-    draws: number;
-    gamesPlayed: number;
-    winRate: number;
-}
- 
-export interface LeaderboardOptions {
-    limit?: number;
-    offset?: number;
-    minGamesPlayed?: number;
-}
-
+import type {
+    LeaderboardEntry,
+    LeaderboardOptions,
+} from "../types/LeaderBoard"
 //-------Repository Functions---------
 
 /**

@@ -2,7 +2,7 @@ import { pool } from "../config/database.config";
 import type {
     LeaderboardEntry,
     LeaderboardOptions,
-} from "../types/LeaderBoard"
+} from "../types/LeaderBoard";
 //-------Repository Functions---------
 
 /**
@@ -15,10 +15,21 @@ export const getLeaderboard = async (
  
     const countResult = await pool.query<{ count: string }>(
         `
+        WITH game_stats AS (
+            SELECT
+                u.id AS user_id,
+                COUNT(g.id)::int AS games_played
+            FROM users u
+            LEFT JOIN games g
+                ON g.status = 'finished'
+                AND (g.white_player_id = u.id OR g.black_player_id = u.id)
+            GROUP BY u.id
+        )
         SELECT COUNT(*) AS count
-        FROM player_ratings pr
-        JOIN users u ON u.id = pr.user_id
-        WHERE pr.games_played >= $1
+        FROM users u
+        LEFT JOIN player_ratings pr ON pr.user_id = u.id
+        LEFT JOIN game_stats gs ON gs.user_id = u.id
+        WHERE GREATEST(COALESCE(gs.games_played, 0), COALESCE(pr.games_played, 0)) >= $1
         `,
         [minGamesPlayed]
     );
@@ -26,24 +37,48 @@ export const getLeaderboard = async (
  
     const result = await pool.query<LeaderboardEntry>(
         `
+        WITH game_stats AS (
+            SELECT
+                u.id AS user_id,
+                COUNT(g.id)::int AS games_played,
+                COUNT(g.id) FILTER (
+                    WHERE (g.white_player_id = u.id AND g.result = 'white_win')
+                       OR (g.black_player_id = u.id AND g.result = 'black_win')
+                )::int AS wins,
+                COUNT(g.id) FILTER (
+                    WHERE (g.white_player_id = u.id AND g.result = 'black_win')
+                       OR (g.black_player_id = u.id AND g.result = 'white_win')
+                )::int AS losses,
+                COUNT(g.id) FILTER (WHERE g.result = 'draw')::int AS draws
+            FROM users u
+            LEFT JOIN games g
+                ON g.status = 'finished'
+                AND (g.white_player_id = u.id OR g.black_player_id = u.id)
+            GROUP BY u.id
+        )
         SELECT
-            ROW_NUMBER() OVER (ORDER BY pr.rating DESC) AS rank,
+            ROW_NUMBER() OVER (ORDER BY COALESCE(pr.rating, u.elo, 1200) DESC) AS rank,
             u.id            AS "userId",
             u.username,
             u.avatar_url    AS "avatarUrl",
-            pr.rating,
-            pr.wins,
-            pr.losses,
-            pr.draws,
-            pr.games_played AS "gamesPlayed",
+            COALESCE(pr.rating, u.elo, 1200) AS rating,
+            GREATEST(COALESCE(gs.wins, 0), COALESCE(pr.wins, 0)) AS wins,
+            GREATEST(COALESCE(gs.losses, 0), COALESCE(pr.losses, 0)) AS losses,
+            GREATEST(COALESCE(gs.draws, 0), COALESCE(pr.draws, 0)) AS draws,
+            GREATEST(COALESCE(gs.games_played, 0), COALESCE(pr.games_played, 0)) AS "gamesPlayed",
             CASE
-                WHEN pr.games_played = 0 THEN 0
-                ELSE ROUND((pr.wins::numeric / pr.games_played) * 100, 1)
+                WHEN GREATEST(COALESCE(gs.games_played, 0), COALESCE(pr.games_played, 0)) = 0 THEN 0
+                ELSE ROUND(
+                    (GREATEST(COALESCE(gs.wins, 0), COALESCE(pr.wins, 0))::numeric
+                    / GREATEST(COALESCE(gs.games_played, 0), COALESCE(pr.games_played, 0))) * 100,
+                    1
+                )
             END AS "winRate"
-        FROM player_ratings pr
-        JOIN users u ON u.id = pr.user_id
-        WHERE pr.games_played >= $1
-        ORDER BY pr.rating DESC
+        FROM users u
+        LEFT JOIN player_ratings pr ON pr.user_id = u.id
+        LEFT JOIN game_stats gs ON gs.user_id = u.id
+        WHERE GREATEST(COALESCE(gs.games_played, 0), COALESCE(pr.games_played, 0)) >= $1
+        ORDER BY COALESCE(pr.rating, u.elo, 1200) DESC
         LIMIT $2 OFFSET $3
         `,
         [minGamesPlayed, limit, offset]

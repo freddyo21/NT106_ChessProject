@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useLocation } from "react-router-dom";
+﻿import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { DEFAULT_ELO, ERoles } from "@zess-online-chess/shared";
 import "./ChessBoardUI.css";
 import GameStatusUI, { GameStatusType } from "../GameStatusUI/GameStatusUI";
@@ -11,6 +11,9 @@ import {
   type RoomMessagePayload,
   type SocketBoard,
   type SocketGameStatePayload,
+  type DrawDeclinedPayload,
+  type DrawOfferPayload,
+  type TimerSyncPayload,
 } from "../services/socketClient";
 import { getCurrentUser, getUserDisplayName, type AuthSessionUser } from "../services/authSession";
 
@@ -36,6 +39,7 @@ type PromotionPiece = "q" | "r" | "b" | "n";
 
 type BoardRouteState = {
   roomId?: string;
+  gameId?: string;
   roomName?: string;
   roomCode?: string;
   timeControl?: number;
@@ -59,6 +63,10 @@ type PendingPromotion = {
   toRow: number;
   toCol: number;
 };
+type GameResultNotice = {
+  title: string;
+  message: string;
+} | null;
 type BoardViewCell = {
   key: string;
   visualRow: number;
@@ -139,6 +147,7 @@ const INITIAL_CHAT: ChatMessage[] = [
     isOwn: false,
   },
 ];
+const RESULT_AUTO_LEAVE_SECONDS = 10;
 
 /* ── Helpers ─────────────────────────────────── */
 function getAuthenticatedUser(): AuthSessionUser {
@@ -156,6 +165,12 @@ function getAuthenticatedUser(): AuthSessionUser {
 }
 
 function cloneBoard(b: string[][]): string[][] { return b.map(r => [...r]); }
+function areBoardsEqual(a: string[][], b: string[][]): boolean {
+  return a.length === b.length && a.every((row, rowIndex) =>
+    row.length === (b[rowIndex]?.length ?? -1) &&
+    row.every((cell, colIndex) => cell === b[rowIndex]?.[colIndex])
+  );
+}
 function getPieceImage(piece: string): string { return PIECE_IMAGE_MAP[piece] || ""; }
 
 function mapSocketBoardToUiBoard(board: SocketBoard): string[][] {
@@ -180,6 +195,56 @@ function getPieceName(piece: string): string {
 
 function formatSquare(row: number, col: number): string { return `${FILES[col]}${8 - row}`; }
 function getRankNumber(row: number): number { return 8 - row; }
+function getColorPrefix(color: PlayerColor): "w" | "b" { return color === "white" ? "w" : "b"; }
+function getTurnStatus(turn: PlayerColor, playerColor: PlayerColor): GameStatusType {
+  return turn === playerColor ? "your-turn" : "opponent-turn";
+}
+function getResultMessage(payload: SocketGameStatePayload, playerColor: PlayerColor): string {
+  if (payload.reason === "draw_agreement" || payload.eloUpdate?.result === "draw" || payload.gameStatus?.startsWith("draw_") || payload.gameStatus === "stalemate") {
+    return "Ván đấu kết thúc: Hòa.";
+  }
+
+  const winner = payload.eloUpdate?.result ??
+    (payload.gameStatus === "white_wins" ? "white" : payload.gameStatus === "black_wins" ? "black" : null);
+
+  if (!winner) {
+    return "Ván đấu đã kết thúc.";
+  }
+
+  if (payload.reason === "opponent_left") {
+    return winner === playerColor ? "Bạn thắng: đối thủ đã rời phòng." : "Bạn thua: bạn đã rời phòng.";
+  }
+
+  if (payload.reason === "resign") {
+    return winner === playerColor ? "Bạn thắng: đối thủ đã đầu hàng." : "Bạn thua: bạn đã đầu hàng.";
+  }
+
+  return winner === playerColor ? "Bạn thắng ván này." : "Bạn thua ván này.";
+}
+function getResultTitle(payload: SocketGameStatePayload, playerColor: PlayerColor): string {
+  if (payload.reason === "draw_agreement" || payload.eloUpdate?.result === "draw" || payload.gameStatus?.startsWith("draw_") || payload.gameStatus === "stalemate") {
+    return "Hòa";
+  }
+
+  const winner = payload.eloUpdate?.result ??
+    (payload.gameStatus === "white_wins" ? "white" : payload.gameStatus === "black_wins" ? "black" : null);
+
+  if (!winner) {
+    return "Ván đấu kết thúc";
+  }
+
+  return winner === playerColor ? "Bạn thắng" : "Bạn thua";
+}
+
+function getWinnerFromPayload(payload: SocketGameStatePayload): PlayerColor | null {
+  return payload.eloUpdate?.result === "white" || payload.eloUpdate?.result === "black"
+    ? payload.eloUpdate.result
+    : payload.gameStatus === "white_wins"
+      ? "white"
+      : payload.gameStatus === "black_wins"
+        ? "black"
+        : null;
+}
 
 function getLogicalPosition(visualRow: number, visualCol: number, bottomColor: PlayerColor) {
   // Chuyển ô người dùng bấm trên UI về lại row/col thật của bàn cờ.
@@ -613,6 +678,7 @@ function ChessPlayerCard({
 /* ── Main component ──────────────────────────── */
 function ChessBoardUI() {
   const location   = useLocation();
+  const navigate   = useNavigate();
   const routeState = (location.state as BoardRouteState | null) ?? null;
   const currentUser = useMemo(() => getAuthenticatedUser(), []);
 
@@ -622,6 +688,7 @@ function ChessBoardUI() {
   const INITIAL_TIME_MS = (typeof timeMinutes === "number" ? timeMinutes : 5) * 60_000;
   const socketRoomId = routeState?.roomId;
   const socketPlayerColor = routeState?.playerColor;
+  const isOnlineRoom = Boolean(socketRoomId);
   const isSocketGame = Boolean(socketRoomId && getSocketToken());
 
   /* ── Board state ── */
@@ -643,12 +710,23 @@ function ChessBoardUI() {
   const [playerElo, setPlayerElo] = useState(routeState?.playerElo ?? currentUser.elo ?? DEFAULT_ELO);
   const [opponentElo, setOpponentElo] = useState(routeState?.opponentElo ?? DEFAULT_ELO);
   const [eloResultMessage, setEloResultMessage] = useState<string | undefined>();
+  const [socketStatusMessage, setSocketStatusMessage] = useState<string | undefined>();
+  const [gameResultNotice, setGameResultNotice] = useState<GameResultNotice>(null);
+  const [resultCountdownSeconds, setResultCountdownSeconds] = useState(RESULT_AUTO_LEAVE_SECONDS);
+  const [pendingDrawOffer, setPendingDrawOffer] = useState<DrawOfferPayload | null>(null);
 
   /* ── Timer state ── */
   const [whiteTimeMs,    setWhiteTimeMs   ] = useState(INITIAL_TIME_MS);
   const [blackTimeMs,    setBlackTimeMs   ] = useState(INITIAL_TIME_MS);
   const [isTimerRunning, setIsTimerRunning] = useState(false);
   const timerIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const leaveAfterGameOverRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const resultCountdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const gameOverHandledRef = useRef(false);
+  const boardSocketRef = useRef<ReturnType<typeof getAppSocket>>(null);
+  const joinedRoomRef = useRef<string | null>(null);
+  const lastAppliedMoveCountRef = useRef(0);
+  const lastAppliedMoveSignatureRef = useRef<string | null>(null);
 
   const latestBoard    = boardHistory[boardHistory.length - 1];
   const displayedBoard = boardHistory[currentViewIdx] || boardHistory[0];
@@ -695,12 +773,100 @@ function ChessBoardUI() {
     };
   }, [bottomPlayer.colorSide, castlingRights, displayedBoard, displayedTurn]);
 
-  const checkStatusMessage = checkedKing
-    ? checkedKing.isCurrentPlayer
-      ? "Vua của bạn đang bị chiếu. Nước tiếp theo bắt buộc phải che chiếu, bắt quân chiếu hoặc di chuyển vua."
-      : "Đối thủ đang bị chiếu và phải xử lý vua ở lượt này."
+  const checkStatusMessage = checkedKing?.isCurrentPlayer
+    ? "Vua của bạn đang bị chiếu. Nước tiếp theo bắt buộc phải che chiếu, bắt quân chiếu hoặc di chuyển vua."
     : undefined;
-  const statusMessage = eloResultMessage ?? checkStatusMessage;
+  const statusMessage = eloResultMessage ?? checkStatusMessage ?? socketStatusMessage;
+  const getBoardSocket = useCallback(() => boardSocketRef.current ?? getAppSocket(), []);
+
+  const leaveBoard = useCallback(() => {
+    if (leaveAfterGameOverRef.current) {
+      window.clearTimeout(leaveAfterGameOverRef.current);
+      leaveAfterGameOverRef.current = null;
+    }
+    if (resultCountdownRef.current) {
+      window.clearInterval(resultCountdownRef.current);
+      resultCountdownRef.current = null;
+    }
+
+    const socket = getBoardSocket();
+    if (socketRoomId) {
+      socket?.emit("leave_room", { roomId: socketRoomId });
+    }
+    navigate("/lobby", { replace: true });
+    const lobbyHash = "#/lobby";
+    window.setTimeout(() => {
+      if (window.location.hash !== lobbyHash) {
+        window.location.hash = lobbyHash;
+      }
+    }, 0);
+    window.setTimeout(() => {
+      if (window.location.hash !== lobbyHash) {
+        window.location.assign(`${window.location.origin}${window.location.pathname}${lobbyHash}`);
+      }
+    }, 150);
+  }, [getBoardSocket, navigate, socketRoomId]);
+
+  const leaveBoardAfterGameOver = useCallback(() => {
+    if (leaveAfterGameOverRef.current) {
+      window.clearTimeout(leaveAfterGameOverRef.current);
+    }
+    if (resultCountdownRef.current) {
+      window.clearInterval(resultCountdownRef.current);
+    }
+
+    setResultCountdownSeconds(RESULT_AUTO_LEAVE_SECONDS);
+    resultCountdownRef.current = setInterval(() => {
+      setResultCountdownSeconds(prev => Math.max(0, prev - 1));
+    }, 1000);
+
+    leaveAfterGameOverRef.current = setTimeout(() => {
+      leaveBoard();
+    }, RESULT_AUTO_LEAVE_SECONDS * 1000);
+  }, [leaveBoard]);
+
+  const applyTimerSnapshot = useCallback((timer: TimerSyncPayload["timer"]) => {
+    if (!timer) {
+      setIsTimerRunning(false);
+      return;
+    }
+
+    setWhiteTimeMs(timer.whiteTimeLeft * 1000);
+    setBlackTimeMs(timer.blackTimeLeft * 1000);
+    setCurrentTurn(timer.currentTurn);
+    setIsTimerRunning(true);
+  }, []);
+
+  const finishGameFromPayload = useCallback((payload: SocketGameStatePayload, options: { forceNotice?: boolean } = {}) => {
+    const nextNotice = {
+      title: getResultTitle(payload, bottomPlayer.colorSide),
+      message: getResultMessage(payload, bottomPlayer.colorSide),
+    };
+
+    setGameResultNotice((currentNotice) => options.forceNotice ? nextNotice : currentNotice ?? nextNotice);
+
+    if (!gameOverHandledRef.current) {
+      gameOverHandledRef.current = true;
+    }
+    leaveBoardAfterGameOver();
+  }, [bottomPlayer.colorSide, leaveBoardAfterGameOver]);
+
+  useEffect(() => {
+    return () => {
+      if (leaveAfterGameOverRef.current) {
+        window.clearTimeout(leaveAfterGameOverRef.current);
+      }
+      if (resultCountdownRef.current) {
+        window.clearInterval(resultCountdownRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (gameResultNotice && resultCountdownSeconds <= 0) {
+      leaveBoard();
+    }
+  }, [gameResultNotice, leaveBoard, resultCountdownSeconds]);
 
   /* ── Timer tick ── */
   useEffect(() => {
@@ -746,14 +912,64 @@ function ChessBoardUI() {
     payload: SocketGameStatePayload,
     options: { replaceHistory?: boolean } = {}
   ) => {
-    const nextBoard = mapSocketBoardToUiBoard(payload.board);
+    const terminalStatus = getTerminalStatusFromServer(payload.gameStatus);
+    const isTerminalPayload = Boolean(payload.reason || terminalStatus);
+    const moveSignature = payload.from && payload.to
+      ? [
+          payload.roomId,
+          payload.from.row,
+          payload.from.col,
+          payload.to.row,
+          payload.to.col,
+          payload.currentTurn,
+          payload.moveCount ?? "no-count",
+        ].join(":")
+      : null;
+
+    if (!isTerminalPayload && !options.replaceHistory && moveSignature && moveSignature === lastAppliedMoveSignatureRef.current) {
+      if (payload.timer !== undefined) {
+        applyTimerSnapshot(payload.timer);
+      }
+      return;
+    }
+
+    if (
+      !isTerminalPayload &&
+      !options.replaceHistory &&
+      payload.moveCount !== undefined &&
+      payload.moveCount <= lastAppliedMoveCountRef.current
+    ) {
+      if (payload.timer !== undefined) {
+        applyTimerSnapshot(payload.timer);
+      }
+      return;
+    }
+
+    if (payload.moveCount !== undefined) {
+      lastAppliedMoveCountRef.current = payload.moveCount;
+    }
+
+    if (options.replaceHistory) {
+      lastAppliedMoveSignatureRef.current = null;
+    } else if (moveSignature) {
+      lastAppliedMoveSignatureRef.current = moveSignature;
+    }
+
+    const serverBoard = mapSocketBoardToUiBoard(payload.board);
 
     setBoardHistory((prev) => {
+      const previousBoard = prev[prev.length - 1] ?? INITIAL_BOARD;
+      const nextBoard = cloneBoard(serverBoard);
+
+      if (!options.replaceHistory && areBoardsEqual(previousBoard, nextBoard)) {
+        setCurrentViewIdx(prev.length - 1);
+        return prev;
+      }
+
       if (options.replaceHistory) {
         setMoves([]);
         setCastlingRights(INITIAL_CASTLING_RIGHTS);
       } else if (payload.from && payload.to) {
-        const previousBoard = prev[prev.length - 1] ?? INITIAL_BOARD;
         const movingPiece = previousBoard[payload.from.row]?.[payload.from.col] ?? "";
         const captured = previousBoard[payload.to.row]?.[payload.to.col] ?? "";
         const promotionPiece = payload.promotionPiece
@@ -801,6 +1017,10 @@ function ChessBoardUI() {
     });
 
     setCurrentTurn(payload.currentTurn);
+    setSocketStatusMessage(undefined);
+    if (payload.timer !== undefined) {
+      applyTimerSnapshot(payload.timer);
+    }
     if (payload.eloUpdate) {
       const bottomIsWhite = bottomPlayer.colorSide === "white";
       // Socket payload is white/black based; convert it to local player/opponent based on board orientation.
@@ -808,32 +1028,59 @@ function ChessBoardUI() {
       const playerDelta = bottomIsWhite ? payload.eloUpdate.whiteDelta : payload.eloUpdate.blackDelta;
       setPlayerElo(nextPlayerElo);
       setOpponentElo(bottomIsWhite ? payload.eloUpdate.blackNextElo : payload.eloUpdate.whiteNextElo);
-      setEloResultMessage(`Elo ${playerDelta >= 0 ? "+" : ""}${playerDelta} -> ${nextPlayerElo}`);
+      const eloText = `Elo ${playerDelta >= 0 ? "+" : ""}${playerDelta} -> ${nextPlayerElo}`;
+      if (payload.reason === "resign") {
+        setEloResultMessage(
+          payload.eloUpdate.result === bottomPlayer.colorSide
+            ? `Đối thủ đầu hàng. ${eloText}`
+            : `Bạn đã đầu hàng. ${eloText}`
+        );
+      } else if (payload.reason === "opponent_left") {
+        setEloResultMessage(
+          payload.eloUpdate.result === bottomPlayer.colorSide
+            ? `Đối thủ rời phòng. ${eloText}`
+            : `Bạn đã rời phòng. ${eloText}`
+        );
+      } else if (payload.reason === "draw_agreement") {
+        setEloResultMessage(`Hai bên đồng ý hòa. ${eloText}`);
+      } else {
+        setEloResultMessage(eloText);
+      }
+    } else if (payload.reason) {
+      setEloResultMessage(getResultMessage(payload, bottomPlayer.colorSide));
     } else {
       setEloResultMessage(undefined);
     }
 
     // Prefer server terminal status when available; otherwise compute check/turn locally for immediate feedback.
-    const terminalStatus = getTerminalStatusFromServer(payload.gameStatus);
+    const resignedStatus =
+      payload.reason === "resign"
+        ? getWinnerFromPayload(payload) === bottomPlayer.colorSide ? "checkmate" : "resigned"
+        : null;
     setGameStatus(
-      terminalStatus ??
-        (isKingInCheck(nextBoard, payload.currentTurn === "white" ? "w" : "b")
+      resignedStatus ??
+        terminalStatus ??
+        (isKingInCheck(serverBoard, payload.currentTurn === "white" ? "w" : "b")
           ? "check"
           : payload.currentTurn === bottomPlayer.colorSide ? "your-turn" : "opponent-turn")
     );
+    if (payload.reason || terminalStatus) {
+      setIsTimerRunning(false);
+    }
     setConnectionStatus("connected");
     setSelectedCell(null);
     setValidMoveSet(new Set());
     setCaptureMoveSet(new Set());
     setPendingPromotion(null);
-  }, [bottomPlayer.colorSide]);
+  }, [applyTimerSnapshot, bottomPlayer.colorSide]);
 
   useEffect(() => {
     if (!socketRoomId) {
       return;
     }
 
-    const socket = getAppSocket();
+    const socket = getBoardSocket();
+    boardSocketRef.current = socket;
 
     if (!socket) {
       setConnectionStatus("disconnected");
@@ -843,7 +1090,12 @@ function ChessBoardUI() {
 
     const handleRoomJoined = (payload: SocketGameStatePayload) => {
       if (payload.roomId === socketRoomId) {
-        applySocketGameState(payload, { replaceHistory: true });
+        if (joinedRoomRef.current !== socketRoomId) {
+          joinedRoomRef.current = socketRoomId;
+          applySocketGameState(payload, { replaceHistory: true });
+          socket.emit("game:ready", { roomId: socketRoomId, gameId: routeState?.gameId ?? socketRoomId });
+          socket.emit("timer:sync", { roomId: socketRoomId });
+        }
       }
     };
 
@@ -853,9 +1105,73 @@ function ChessBoardUI() {
       }
     };
 
+    const handleGameOver = (payload: SocketGameStatePayload) => {
+      if (payload.roomId === socketRoomId) {
+        setPendingDrawOffer(null);
+        applySocketGameState(payload);
+        finishGameFromPayload(payload, {
+          forceNotice: payload.reason === "resign" || payload.reason === "draw_agreement",
+        });
+      }
+    };
+
+    const handleTimerSync = (payload: TimerSyncPayload) => {
+      if (payload.roomId === socketRoomId) {
+        applyTimerSnapshot(payload.timer);
+      }
+    };
+
+    const handleGameTimeout = (payload: { loser: PlayerColor; winner: PlayerColor }) => {
+      const didWin = payload.winner === bottomPlayer.colorSide;
+      const message = didWin
+        ? "Bạn thắng: đối thủ đã hết giờ."
+        : "Bạn thua: bạn đã hết giờ.";
+      setGameResultNotice({ title: didWin ? "Bạn thắng" : "Bạn thua", message });
+      leaveBoardAfterGameOver();
+    };
+
     const handleGameError = (payload: { message: string }) => {
-      setGameStatus("your-turn");
+      setGameStatus(getTurnStatus(currentTurn, bottomPlayer.colorSide));
+      setSocketStatusMessage(payload.message || "Không thể thực hiện thao tác này.");
       console.warn(payload.message);
+    };
+
+    const handleRoomError = (message: string) => {
+      setGameStatus("disconnected");
+      setSocketStatusMessage(message || "Phòng đấu gặp lỗi kết nối.");
+      console.warn(message);
+    };
+
+    const handlePlayerLeft = (payload: { userId: string }) => {
+      if (payload.userId === currentUser.id || gameOverHandledRef.current) {
+        return;
+      }
+
+      setPendingDrawOffer(null);
+      gameOverHandledRef.current = true;
+      setIsTimerRunning(false);
+      setConnectionStatus("connected");
+      setGameStatus("checkmate");
+      setGameResultNotice({
+        title: "Bạn thắng",
+        message: "Bạn thắng: đối thủ đã rời phòng.",
+      });
+      leaveBoardAfterGameOver();
+    };
+
+    const handleDrawOffer = (payload: DrawOfferPayload) => {
+      if (payload.roomId !== socketRoomId || payload.offeredBy === currentUser.id) {
+        return;
+      }
+
+      setPendingDrawOffer(payload);
+    };
+
+    const handleDrawDeclined = (payload: DrawDeclinedPayload) => {
+      if (payload.roomId === socketRoomId) {
+        setPendingDrawOffer(null);
+        window.alert(`${payload.username} đã từ chối hòa.`);
+      }
     };
 
     const handleReceiveMessage = (payload: RoomMessagePayload) => {
@@ -882,7 +1198,14 @@ function ChessBoardUI() {
 
     socket.on("room_joined", handleRoomJoined);
     socket.on("chess_move", handleChessMove);
+    socket.on("game_over", handleGameOver);
+    socket.on("timer:sync", handleTimerSync);
+    socket.on("game_timeout", handleGameTimeout);
     socket.on("game_error", handleGameError);
+    socket.on("room_error", handleRoomError);
+    socket.on("player_left", handlePlayerLeft);
+    socket.on("draw:offer", handleDrawOffer);
+    socket.on("draw:declined", handleDrawDeclined);
     socket.on("chat", handleReceiveMessage);
     socket.on("disconnect", handleDisconnect);
 
@@ -891,19 +1214,26 @@ function ChessBoardUI() {
       socket.connect();
     }
 
-    socket.emit("join_room", socketRoomId);
+    socket.emit("join_room", { roomId: socketRoomId });
 
     return () => {
       socket.off("room_joined", handleRoomJoined);
       socket.off("chess_move", handleChessMove);
+      socket.off("game_over", handleGameOver);
+      socket.off("timer:sync", handleTimerSync);
+      socket.off("game_timeout", handleGameTimeout);
       socket.off("game_error", handleGameError);
+      socket.off("room_error", handleRoomError);
+      socket.off("player_left", handlePlayerLeft);
+      socket.off("draw:offer", handleDrawOffer);
+      socket.off("draw:declined", handleDrawDeclined);
       socket.off("chat", handleReceiveMessage);
       socket.off("disconnect", handleDisconnect);
     };
-  }, [applySocketGameState, currentUser.username, socketRoomId]);
+  }, [applySocketGameState, applyTimerSnapshot, bottomPlayer.colorSide, currentUser.id, currentUser.username, finishGameFromPayload, getBoardSocket, leaveBoardAfterGameOver, socketRoomId]);
 
   const handleSendGameChatMessage = (message: string) => {
-    const socket = getAppSocket();
+    const socket = getBoardSocket();
 
     if (!socket || !socketRoomId) {
       return;
@@ -913,6 +1243,122 @@ function ChessBoardUI() {
     socket.emit("chat", {
       roomId: socketRoomId,
       message,
+    });
+  };
+
+  const handleOfferDraw = () => {
+    if (!isOnlineRoom || !socketRoomId) {
+      setGameStatus("draw");
+      return;
+    }
+
+    const socket = getBoardSocket();
+    if (!socket) {
+      setConnectionStatus("disconnected");
+      return;
+    }
+    if (!socket.connected) {
+      setConnectionStatus("connecting");
+      socket.connect();
+    }
+
+    socket.emit("draw:offer", { roomId: socketRoomId }, (response) => {
+      if (!response.ok) {
+        console.warn(response.message || "Draw offer failed");
+        return;
+      }
+
+      if (response.reason === "draw_agreement") {
+        setPendingDrawOffer(null);
+        if (response.board && response.currentTurn) {
+          applySocketGameState(response as SocketGameStatePayload);
+        }
+        finishGameFromPayload(response as SocketGameStatePayload, { forceNotice: true });
+        return;
+      }
+
+      setSocketStatusMessage("Đã gửi đề nghị hòa. Đang chờ đối thủ phản hồi.");
+      window.alert("Đã gửi đề nghị hòa cho đối thủ.");
+    });
+  };
+
+  const handleAcceptDrawOffer = () => {
+    if (!socketRoomId) {
+      setPendingDrawOffer(null);
+      return;
+    }
+
+    const socket = getBoardSocket();
+    if (!socket) {
+      setConnectionStatus("disconnected");
+      return;
+    }
+    if (!socket.connected) {
+      setConnectionStatus("connecting");
+      socket.connect();
+    }
+
+    socket.emit("draw:accept", { roomId: socketRoomId }, (response) => {
+      if (!response.ok) {
+        console.warn(response.message || "Draw response failed");
+        setSocketStatusMessage(response.message || "Không thể chấp nhận hòa.");
+        return;
+      }
+
+      setPendingDrawOffer(null);
+      if (response.board && response.currentTurn) {
+        applySocketGameState(response as SocketGameStatePayload);
+      }
+      finishGameFromPayload(response as SocketGameStatePayload, { forceNotice: true });
+    });
+  };
+
+  const handleDeclineDrawOffer = () => {
+    if (socketRoomId) {
+      getBoardSocket()?.emit("draw:decline", { roomId: socketRoomId });
+    }
+    setPendingDrawOffer(null);
+  };
+
+  const handleResign = () => {
+    if (!window.confirm("Bạn chắc chắn muốn đầu hàng ván này?")) {
+      return;
+    }
+
+    gameOverHandledRef.current = true;
+    setIsTimerRunning(false);
+    setGameStatus("resigned");
+    setEloResultMessage("Bạn thua: bạn đã đầu hàng.");
+    setGameResultNotice({
+      title: "Bạn thua",
+      message: "Bạn thua: bạn đã đầu hàng.",
+    });
+    leaveBoardAfterGameOver();
+
+    if (!isOnlineRoom || !socketRoomId) {
+      return;
+    }
+
+    const socket = getBoardSocket();
+    if (!socket) {
+      setConnectionStatus("disconnected");
+      return;
+    }
+    if (!socket.connected) {
+      setConnectionStatus("connecting");
+      socket.connect();
+    }
+
+    socket.emit("game:resign", { roomId: socketRoomId }, (response) => {
+      if (!response.ok) {
+        console.warn(response.message || "Resign failed");
+        return;
+      }
+
+      if (response.board && response.currentTurn) {
+        applySocketGameState(response as SocketGameStatePayload);
+      }
+      finishGameFromPayload(response as SocketGameStatePayload);
     });
   };
 
@@ -928,7 +1374,30 @@ function ChessBoardUI() {
       return false;
     }
 
-    const socket = getAppSocket();
+    const movingPiece = latestBoard[fromRow]?.[fromCol];
+    const isCurrentPlayerTurn = currentTurn === bottomPlayer.colorSide;
+    const isOwnPiece = movingPiece?.startsWith(getColorPrefix(bottomPlayer.colorSide));
+
+    if (!movingPiece || !isCurrentPlayerTurn || !isOwnPiece) {
+      setSocketStatusMessage(
+        !movingPiece
+          ? "Không có quân cờ ở ô đã chọn."
+          : !isCurrentPlayerTurn
+            ? "Chưa đến lượt bạn."
+            : "Bạn không thể di chuyển quân của đối thủ."
+      );
+      console.warn(
+        `Blocked illegal online move ${formatSquare(fromRow, fromCol)} -> ${formatSquare(toRow, toCol)}`
+      );
+      setGameStatus(getTurnStatus(currentTurn, bottomPlayer.colorSide));
+      setPendingPromotion(null);
+      setSelectedCell(null);
+      setValidMoveSet(new Set());
+      setCaptureMoveSet(new Set());
+      return false;
+    }
+
+    const socket = getBoardSocket();
     if (!socket) {
       setConnectionStatus("disconnected");
       setGameStatus("disconnected");
@@ -945,7 +1414,8 @@ function ChessBoardUI() {
       },
       (response) => {
         if (!response.ok) {
-          setGameStatus("your-turn");
+          setGameStatus(getTurnStatus(currentTurn, bottomPlayer.colorSide));
+          setSocketStatusMessage(response.message || "Nước đi không hợp lệ.");
           console.warn(response.message || "Invalid socket move");
         }
       }
@@ -1025,13 +1495,14 @@ function ChessBoardUI() {
       return;
     }
 
-    if (isSocketGame && emitSocketMove(
-      pendingPromotion.fromRow,
-      pendingPromotion.fromCol,
-      pendingPromotion.toRow,
-      pendingPromotion.toCol,
-      promotionPiece
-    )) {
+    if (isOnlineRoom) {
+      emitSocketMove(
+        pendingPromotion.fromRow,
+        pendingPromotion.fromCol,
+        pendingPromotion.toRow,
+        pendingPromotion.toCol,
+        promotionPiece
+      );
       return;
     }
 
@@ -1051,11 +1522,16 @@ function ChessBoardUI() {
     if (ended) return;
 
     const clickedPiece = latestBoard[row][col];
-    const turnPrefix   = displayedTurn === "white" ? "w" : "b";
+    const turnPrefix   = getColorPrefix(displayedTurn);
+    const playerPrefix = getColorPrefix(bottomPlayer.colorSide);
+    const canControlTurn = !isOnlineRoom || displayedTurn === bottomPlayer.colorSide;
+    const canSelectPiece = (piece: string) =>
+      piece.startsWith(turnPrefix) &&
+      (!isOnlineRoom || (canControlTurn && piece.startsWith(playerPrefix)));
     const key          = `${row}-${col}`;
 
     if (selectedCell === null) {
-      if (clickedPiece && clickedPiece.startsWith(turnPrefix)) {
+      if (clickedPiece && canSelectPiece(clickedPiece)) {
         setSelectedCell({ row, col });
         updateValidMoves(row, col, latestBoard);
       }
@@ -1067,19 +1543,19 @@ function ChessBoardUI() {
       return;
     }
 
-    if (clickedPiece && clickedPiece.startsWith(turnPrefix)) {
+    if (clickedPiece && canSelectPiece(clickedPiece)) {
       setSelectedCell({ row, col });
       updateValidMoves(row, col, latestBoard);
       return;
     }
 
+    const movingPiece = latestBoard[selectedCell.row][selectedCell.col];
+    const isEnemyTarget = Boolean(clickedPiece && movingPiece && clickedPiece[0] !== movingPiece[0]);
     const isValidDest = validMoveSet.has(key) || captureMoveSet.has(key);
-    if (!isValidDest) {
+    if (!isValidDest && !(isOnlineRoom && isEnemyTarget)) {
       setSelectedCell(null); setValidMoveSet(new Set()); setCaptureMoveSet(new Set());
       return;
     }
-
-    const movingPiece = latestBoard[selectedCell.row][selectedCell.col];
 
     if (isPawnPromotionMove(movingPiece, row)) {
       setPendingPromotion({
@@ -1091,7 +1567,8 @@ function ChessBoardUI() {
       return;
     }
 
-    if (isSocketGame && emitSocketMove(selectedCell.row, selectedCell.col, row, col)) {
+    if (isOnlineRoom) {
+      emitSocketMove(selectedCell.row, selectedCell.col, row, col);
       return;
     }
 
@@ -1123,21 +1600,22 @@ function ChessBoardUI() {
   );
 
   const getTimeForColor = (color: PlayerColor) => color === "white" ? whiteTimeMs : blackTimeMs;
+  const moveCount = Math.max(0, boardHistory.length - 1);
 
   /* ── Auto-scroll move list ── */
   const moveListEndRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => { moveListEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [moves]);
 
   const isTerminalStatus = ["draw","checkmate","disconnected","resigned","timeout-win","timeout-loss"].includes(gameStatus);
+  const turnStatus = displayedTurn === bottomPlayer.colorSide ? "your-turn" : "opponent-turn";
+  const currentPlayerCheckStatus: GameStatusType | null = checkedKing?.isCurrentPlayer
+    ? checkedKing.hasLegalMove ? "check" : "checkmate"
+    : null;
   const displayStatus: GameStatusType = isViewingLatest
     ? isTerminalStatus
       ? gameStatus
-      : checkedKing
-      ? checkedKing.hasLegalMove ? "check" : "checkmate"
-      : gameStatus
-    : checkedKing
-      ? "check"
-      : displayedTurn === bottomPlayer.colorSide ? "your-turn" : "opponent-turn";
+      : currentPlayerCheckStatus ?? (gameStatus === "check" ? turnStatus : gameStatus)
+    : currentPlayerCheckStatus ?? turnStatus;
 
   /* ── Render ── */
   return (
@@ -1260,7 +1738,7 @@ function ChessBoardUI() {
                     <span>Lượt hiện tại</span>
                     <strong>{displayedTurn === "white" ? "Trắng" : "Đen"}</strong>
                   </div>
-                  <div className="cb-room-row"><span>Số nước đã đi</span><strong>{moves.length}</strong></div>
+                  <div className="cb-room-row"><span>Số nước đã đi</span><strong>{moveCount}</strong></div>
                 </div>
 
                 {/* Quân đã bị ăn */}
@@ -1352,8 +1830,9 @@ function ChessBoardUI() {
 
           {/* ── PANEL ĐẦU HÀNG / CẦU HÒA — luôn hiện, nằm ngoài tab-content ── */}
           <div className="cb-game-actions-panel">
-            <button type="button" className="cb-action-btn draw"   onClick={() => setGameStatus("draw")}>🤝 Cầu hòa</button>
-            <button type="button" className="cb-action-btn resign" onClick={() => setGameStatus("resigned")}>🏳 Đầu hàng</button>
+            <button type="button" className="cb-action-btn draw" onClick={handleOfferDraw} disabled={isTerminalStatus}>🤝 Cầu hòa</button>
+            <button type="button" className="cb-action-btn resign" onClick={handleResign} disabled={isTerminalStatus}>🏳 Đầu hàng</button>
+            <button type="button" className="cb-action-btn leave" onClick={leaveBoard}>← Rời phòng</button>
           </div>
 
         </div>
@@ -1387,6 +1866,41 @@ function ChessBoardUI() {
                 );
               })}
             </div>
+          </div>
+        </div>
+      )}
+
+      {pendingDrawOffer && !gameResultNotice && (
+        <div className="cb-result-overlay" role="dialog" aria-modal="true">
+          <div className="cb-result-panel cb-draw-offer-panel">
+            <p className="cb-result-kicker">Đề nghị hòa</p>
+            <h2>Đối thủ muốn hòa</h2>
+            <p>{pendingDrawOffer.username} đề nghị kết thúc ván đấu với kết quả hòa.</p>
+            <div className="cb-draw-offer-actions">
+              <button type="button" className="cb-result-btn secondary" onClick={handleDeclineDrawOffer}>
+                Từ chối
+              </button>
+              <button type="button" className="cb-result-btn" onClick={handleAcceptDrawOffer}>
+                Đồng ý hòa
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {gameResultNotice && (
+        <div className="cb-result-overlay" role="dialog" aria-modal="true" onClick={leaveBoard}>
+          <div className="cb-result-panel" onClick={(event) => event.stopPropagation()}>
+            <p className="cb-result-kicker">Kết quả ván đấu</p>
+            <h2>{gameResultNotice.title}</h2>
+            <p>{gameResultNotice.message}</p>
+            {eloResultMessage && <span className="cb-result-elo">{eloResultMessage}</span>}
+            <p className="cb-result-countdown">
+              Tự về sảnh sau <strong>{resultCountdownSeconds}s</strong>. Nhấn vào màn hình để rời ngay.
+            </p>
+            <button type="button" className="cb-result-btn" onClick={leaveBoard}>
+              Rời phòng
+            </button>
           </div>
         </div>
       )}

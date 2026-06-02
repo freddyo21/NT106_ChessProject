@@ -15,8 +15,35 @@ type MessageState = {
 
 function getErrorMessage(error: unknown) {
   if (typeof error === "object" && error !== null && "response" in error) {
-    const response = (error as { response?: { data?: { message?: string; error?: string } } }).response;
-    return response?.data?.message || response?.data?.error;
+    const response = (error as {
+      response?: {
+        data?: {
+          message?: unknown;
+          error?: unknown;
+        };
+      };
+    }).response;
+    const responseMessage = response?.data?.message;
+    const responseError = response?.data?.error;
+
+    if (typeof responseMessage === "string") {
+      return responseMessage;
+    }
+
+    if (typeof responseError === "string") {
+      return responseError;
+    }
+
+    if (
+      typeof responseError === "object" &&
+      responseError !== null &&
+      "message" in responseError &&
+      typeof responseError.message === "string"
+    ) {
+      return responseError.message || "Máy chủ đang lỗi. Vui lòng thử lại sau.";
+    }
+
+    return null;
   }
 
   if (error instanceof Error) {
@@ -107,7 +134,7 @@ function LoginUI() {
       setAuthMode("login");
       setMessage({
         type: "success",
-        text: "Đăng ký thành công. Vui lòng đăng nhập.",
+        text: "Đăng ký thành công. Vui lòng đăng nhập sau khi tài khoản được xác thực.",
       });
     } catch (error) {
       setMessage({
@@ -268,7 +295,7 @@ function LoginUI() {
             <form className="auth-form" onSubmit={handleRegister}>
               <h2>Đăng ký</h2>
               <p className="auth-description">
-                Vui lòng nhập đầy đủ thông tin phía dưới để tạo tài khoản.
+                Tạo tài khoản bằng email để dùng Auth thật và kết nối WebSocket.
               </p>
 
               <label htmlFor="register-gmail">Email</label>

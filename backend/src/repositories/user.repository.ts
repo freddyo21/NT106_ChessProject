@@ -17,6 +17,12 @@ const USER_SELECT_COLUMNS = `
     u."last_login" AS "lastLogin"
 `;
 
+const toUserResponse = (user: IUser) => {
+    const userWithoutHash = { ...user };
+    delete (userWithoutHash as Partial<IUser>).passwordHash;
+    return UserResponseSchema.parse(userWithoutHash);
+};
+
 export const findById = async (id: string) => {
     const query = `
         SELECT ${USER_SELECT_COLUMNS}, r.name AS role
@@ -74,11 +80,8 @@ export const create = async (data: Required<CreateUserData>) => {
     const user = await pool.query<IUser>(
         `
             WITH "inserted_user" AS (
-                -- New accounts always start from shared DEFAULT_ELO so DB rows match frontend rank display.
-                INSERT INTO "users" ("name", "username", "email", "password_hash", "elo")
-                VALUES ($1, $2, $3, $4, $5)
-//                 INSERT INTO "users" ("id", "name", "username", "email", "password_hash", "is_verified")
-//                 VALUES ($1, $2, $3, $4, $5, true)
+                INSERT INTO "users" ("id", "name", "username", "email", "password_hash", "elo")
+                VALUES ($1, $2, $3, $4, $5, $6)
                 RETURNING *
             )
             SELECT 
@@ -97,13 +100,11 @@ export const create = async (data: Required<CreateUserData>) => {
             FROM "inserted_user" iu
             JOIN "roles" r ON iu."role_id" = r."id";
         `,
-        [name, username, email, passwordHash, DEFAULT_ELO]
-//         [id, name, username, email, passwordHash]
+        [id, name, username, email, passwordHash, DEFAULT_ELO]
     ).then(result => result.rows[0] ?? null);
 
     if (user) {
-        const { passwordHash, ...userWithoutHash } = user;
-        return UserResponseSchema.parse(userWithoutHash);
+        return toUserResponse(user);
     }
 
     throw new Exception("Failed to create user", 500, "InternalServerError");
@@ -150,7 +151,7 @@ export const update = async (id: string, data: Partial<User>) => {
     const user = result.rows[0] ?? null;
     if (!user) return null;
 
-    return UserResponseSchema.parse(user);
+    return toUserResponse(user);
 };
 
 export const updateElo = async (id: string, elo: number) => {
@@ -171,5 +172,5 @@ export const updateElo = async (id: string, elo: number) => {
     const user = result.rows[0] ?? null;
     if (!user) return null;
 
-    return UserResponseSchema.parse(user);
+    return toUserResponse(user);
 };

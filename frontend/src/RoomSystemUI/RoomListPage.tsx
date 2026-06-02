@@ -235,12 +235,13 @@ function RoomListPage() {
 
   const handleCreateRoom = () => {
     if (!currentUser) return;
+    const roomCode = createRandomRoomCode();
 
     // Tạo phòng bằng cách điều hướng vào board với roomId mới; board sẽ emit join_room và backend tạo room thật.
     const newRoom: RoomListItem = {
-      id: `room-${Date.now()}`,
+      id: roomCode,
       roomName: `Phòng của ${currentUser.username}`,
-      roomCode: createRandomRoomCode(),
+      roomCode,
       hostName: currentUser.username,
       hostElo: currentUser.elo ?? DEFAULT_ELO,
       players: 1,
@@ -275,25 +276,40 @@ function RoomListPage() {
       return;
     }
 
-    const matchedRoom = rooms.find((room) => {
+    const findMatchedRoom = (roomList: RoomListItem[]) => roomList.find((room) => {
       return (
         (joinTarget.code &&
           room.roomCode.toUpperCase() === joinTarget.code) ||
         (joinTarget.roomId && room.id === joinTarget.roomId)
       );
     });
+    const joinMatchedRoom = (roomList: RoomListItem[]) => {
+      const matchedRoom = findMatchedRoom(roomList);
 
-    if (!matchedRoom) {
-      alert("Không tìm thấy phòng với mã hoặc link này.");
+      if (!matchedRoom) {
+        alert("Không tìm thấy phòng với mã hoặc link này.");
+        return;
+      }
+
+      if (!canJoinRoom(matchedRoom)) {
+        alert("Phòng này không thể vào vì đã đầy hoặc đang đấu.");
+        return;
+      }
+
+      navigateToRoom(matchedRoom, "join");
+    };
+
+    const matchedRoom = findMatchedRoom(rooms);
+    if (matchedRoom) {
+      joinMatchedRoom(rooms);
       return;
     }
 
-    if (!canJoinRoom(matchedRoom)) {
-      alert("Phòng này không thể vào vì đã đầy hoặc đang đấu.");
-      return;
-    }
-
-    navigateToRoom(matchedRoom, "join");
+    const socket = getAppSocket();
+    socket?.emit("rooms:list", (nextRooms) => {
+      setRooms(nextRooms);
+      joinMatchedRoom(nextRooms);
+    });
   };
 
   const handleDoubleClickRoom = (room: RoomListItem) => {

@@ -272,6 +272,41 @@
   background: linear-gradient(135deg, rgba(30,41,59,0.95), rgba(15,23,42,0.95));
 }
 
+.lobby-main-btn.ai {
+  color: #06251b;
+  background: linear-gradient(135deg, #34d399, #22d3ee);
+  border-color: rgba(45, 212, 191, 0.35);
+}
+
+.lobby-ai-action {
+  display: grid;
+  gap: 8px;
+}
+
+.lobby-ai-difficulty {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+
+.lobby-ai-difficulty button {
+  min-height: 34px;
+  border: 1px solid rgba(125, 211, 252, 0.18);
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.76);
+  color: #cbd5e1;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.lobby-ai-difficulty button.active {
+  border-color: rgba(34, 211, 238, 0.58);
+  background: rgba(14, 165, 233, 0.22);
+  color: #7dd3fc;
+}
+
 .lobby-main-btn:hover {
   transform: translateY(-2px);
   filter: brightness(1.08);

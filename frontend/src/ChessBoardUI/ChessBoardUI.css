@@ -6,7 +6,7 @@
   padding: 20px;
   background: transparent;
   color: #eef4ff;
-  font-family: 'Be Vietnam Pro', Arial, sans-serif;
+  font-family: "Be Vietnam Pro", Arial, Helvetica, sans-serif;
 }
 
 .chess-shell {
@@ -87,10 +87,11 @@
   border-radius: 999px;
   font-size: 11px;
   font-weight: 700;
-  background: rgba(148,163,184,.16);
-  color: #cbd5e1;
-  border: 1px solid rgba(148,163,184,.28);
 }
+.cb-elo-badge.bronze  { background: rgba(180,100,50,.18); color: #cd8b5a; border: 1px solid rgba(180,100,50,.28); }
+.cb-elo-badge.silver  { background: rgba(148,163,184,.16); color: #cbd5e1; border: 1px solid rgba(148,163,184,.28); }
+.cb-elo-badge.gold    { background: rgba(234,179,8,.16); color: #fde047; border: 1px solid rgba(234,179,8,.26); }
+.cb-elo-badge.master  { background: rgba(168,85,247,.16); color: #c084fc; border: 1px solid rgba(168,85,247,.28); }
 
 .cb-color-label {
   font-size: 11px;
@@ -298,7 +299,6 @@
   position: sticky;
   top: 20px;
   height: calc(100vh - 40px);
-  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 0;
@@ -341,7 +341,6 @@
 /* Tab content area */
 .cb-tab-content {
   flex: 1;
-  min-width: 0;
   min-height: 0;
   display: flex;
   flex-direction: column;
@@ -478,14 +477,12 @@
 /* ── CHAT TAB ────────────────────────────────── */
 .cb-chat-wrap {
   height: 100%;
-  min-width: 0;
   display: flex;
   overflow: hidden;
 }
 
 .cb-chat-wrap .chat-ui {
   width: 100%;
-  min-width: 0;
   max-width: none;
   height: 100%;
   border-radius: 0;
@@ -499,10 +496,8 @@
 .cb-chat-wrap .chat-ui__messages { padding: 10px 12px; gap: 8px; }
 .cb-chat-wrap .chat-ui__message-bubble { max-width: 76%; padding: 7px 9px 6px; }
 .cb-chat-wrap .chat-ui__message-text   { font-size: 13px; }
-.cb-chat-wrap .chat-ui__footer         { padding: 8px; gap: 6px; align-items: center; }
-.cb-chat-wrap .chat-ui__input-wrapper  { min-width: 0; padding: 8px 10px; gap: 6px; }
-.cb-chat-wrap .chat-ui__textarea       { min-width: 0; }
-.cb-chat-wrap .chat-ui__send-button    { width: 52px; min-width: 52px; height: 38px; padding: 0; font-size: 13px; display: flex; align-items: center; justify-content: center; }
+.cb-chat-wrap .chat-ui__footer         { padding: 8px 10px; gap: 8px; align-items: center; }
+.cb-chat-wrap .chat-ui__send-button    { min-width: 64px; height: 38px; font-size: 13px; display: flex; align-items: center; justify-content: center; }
 .cb-chat-wrap .chat-ui__icon-button    { width: 32px; height: 32px; font-size: 17px; display: flex; align-items: center; justify-content: center; }
 
 /* ── INFO TAB ────────────────────────────────── */
@@ -637,6 +632,22 @@
   border-color: rgba(168,85,247,.4);
 }
 
+.cb-action-btn.leave {
+  background: rgba(15, 23, 42, 0.82);
+  color: #cbd5e1;
+  border-color: rgba(148, 163, 184, 0.2);
+}
+
+.cb-action-btn.leave:hover {
+  background: rgba(30, 41, 59, 0.92);
+  border-color: rgba(148, 163, 184, 0.36);
+}
+
+.cb-action-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
 /* Pawn promotion */
 .cb-promotion-overlay {
   position: fixed;
@@ -753,4 +764,111 @@
   .cb-promotion-options {
     grid-template-columns: repeat(2, 1fr);
   }
+}
+
+.cb-result-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(2, 6, 23, 0.74);
+  backdrop-filter: blur(7px);
+}
+
+.cb-result-panel {
+  width: min(430px, 100%);
+  border: 1px solid rgba(125, 211, 252, 0.24);
+  border-radius: 16px;
+  padding: 22px;
+  background:
+    linear-gradient(180deg, rgba(15, 23, 42, 0.98), rgba(5, 12, 24, 0.98));
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.55);
+  text-align: center;
+  font-family: "Be Vietnam Pro", Arial, Helvetica, sans-serif;
+}
+
+.cb-result-kicker {
+  margin: 0 0 8px;
+  color: #7dd3fc;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.cb-result-panel h2 {
+  margin: 0 0 10px;
+  color: #f8fafc;
+  font-size: 30px;
+  line-height: 1.25;
+  letter-spacing: 0;
+}
+
+.cb-result-panel p {
+  margin: 0;
+  color: #cbd5e1;
+  font-size: 15px;
+  line-height: 1.5;
+  letter-spacing: 0;
+}
+
+.cb-result-elo {
+  display: inline-flex;
+  margin-top: 14px;
+  padding: 7px 11px;
+  border-radius: 999px;
+  background: rgba(14, 165, 233, 0.12);
+  color: #7dd3fc;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0;
+}
+
+.cb-result-countdown {
+  margin-top: 14px !important;
+  color: #94a3b8 !important;
+  font-size: 13px !important;
+}
+
+.cb-result-countdown strong {
+  color: #7dd3fc;
+}
+
+.cb-result-btn {
+  width: 100%;
+  margin-top: 18px;
+  padding: 12px 14px;
+  border: 1px solid rgba(34, 197, 94, 0.28);
+  border-radius: 10px;
+  background: linear-gradient(135deg, #16a34a, #22c55e);
+  color: #f8fafc;
+  font-size: 15px;
+  font-weight: 800;
+  font-family: inherit;
+  letter-spacing: 0;
+  cursor: pointer;
+}
+
+.cb-result-btn:hover {
+  filter: brightness(1.05);
+}
+
+.cb-draw-offer-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.cb-draw-offer-actions .cb-result-btn {
+  margin-top: 0;
+}
+
+.cb-result-btn.secondary {
+  border-color: rgba(148, 163, 184, 0.34);
+  background: rgba(15, 23, 42, 0.92);
+  color: #cbd5e1;
 }

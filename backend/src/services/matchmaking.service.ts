@@ -1,12 +1,11 @@
-import { pool } from "../config/database.config";
 import { Logger } from "../utils/Logger";
 import { Exception } from "../exceptions";
 import * as gameRepository from "../repositories/game.repository";
+import * as matchmakingRepository from "../repositories/matchmaking.repository";
 import type {
     MatchmakingMode,
     MatchmakingResult,
-    QueueEntry,
-} from "../types/MatchMaking"
+} from "../types/MatchMaking";
 import type { TimeControlType } from "../types/TimeControl";
 
 const logger = new Logger("matchmaking-service");
@@ -23,13 +22,28 @@ const TIME_CONTROL_PRESETS: Record<TimeControlType, { initialTimeSeconds: number
 
 //---------Room code generator----------
 const generateRoomCode = (): string => {
-    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // bỏ I, O, 0, 1 cho dễ đọc
+    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // bá» I, O, 0, 1 cho dá»… Ä‘á»c
     return Array.from({ length: 6 }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
+};
+
+const generateUniqueRoomCode = async (): Promise<string> => {
+    let roomCode = generateRoomCode();
+    let attempts = 0;
+
+    while (attempts < 5) {
+        const exists = await matchmakingRepository.isRoomCodeTaken(roomCode);
+        if (!exists) return roomCode;
+
+        roomCode = generateRoomCode();
+        attempts++;
+    }
+
+    throw new Exception("Could not generate a unique room code", 500);
 };
 
 //---------Queue management-----------
 /**
- * Thêm người chơi vào hàng chờ matchmaking
+ * Add a player to the matchmaking queue.
  */
 export const joinQueue = async (
     userId: string,
@@ -37,120 +51,46 @@ export const joinQueue = async (
     timeControlType: TimeControlType,
     currentRating: number
 ): Promise<void> => {
-    await pool.query(
-        `
-        INSERT INTO matchmaking_queue (user_id, mode, time_control_type, rating_at_queue)
-        VALUES ($1, $2, $3, $4)
-        ON CONFLICT (user_id) DO UPDATE SET
-            mode                = EXCLUDED.mode,
-            time_control_type   = EXCLUDED.time_control_type,
-            rating_at_queue     = EXCLUDED.rating_at_queue,
-            created_at          = now()
-        `,
-        [userId, mode, timeControlType, currentRating]
-    );
- 
+    await matchmakingRepository.upsertQueueEntry(userId, mode, timeControlType, currentRating);
+
     logger.log("Player joined queue", { userId, mode, timeControlType, rating: currentRating });
 };
 
 /**
- * Xóa người chơi khỏi hàng chờ
+ * Remove a player from the matchmaking queue.
  */
 export const leaveQueue = async (userId: string): Promise<void> => {
-    await pool.query(
-        `DELETE FROM matchmaking_queue WHERE user_id = $1`,
-        [userId]
-    );
+    await matchmakingRepository.deleteQueueEntry(userId);
     logger.log("Player left queue", { userId });
 };
 
 /**
- * Kiểm tra người chơi có đang trong queue không
+ * Check whether the player is currently queued.
  */
 export const isInQueue = async (userId: string): Promise<boolean> => {
-    const result = await pool.query(
-        `SELECT 1 FROM matchmaking_queue WHERE user_id = $1`,
-        [userId]
-    );
-    return result.rows.length > 0;
+    return matchmakingRepository.hasQueueEntry(userId);
 };
 
 //-------Matchmaking logic---------
 /**
- * Tìm đối thủ phù hợp cho người chơi trong queue
- * Gọi định kỳ từ socket (vd mỗi 2s) hoặc trigger khi có người mới join
- * 
- * Thuật toán: (simplified cho đồ án - ít player)
- * 1. Lấy entry của userId từ queue
- * 2. Tìm bất kỳ người nào đang chờ, cùng mode + time control là đủ (không filter rating)
- * 3. Nếu tìm được -> tạo game, xóa cả 2 khỏi queue
+ * Find a compatible opponent and create a game record.
  */
 export const findMatch = async (userId: string): Promise<MatchmakingResult> => {
-    // 1. Lấy entry của người này
-    const myEntry = await pool.query<QueueEntry>(
-            `
-            SELECT
-                user_id           AS "userId",
-                mode,
-                time_control_type AS "timeControlType",
-                rating_at_queue   AS "ratingAtQueue",
-                created_at        AS "createdAt"
-            FROM matchmaking_queue
-            WHERE user_id = $1
-            `,
-            [userId]
-        );
-    
-        if (myEntry.rows.length === 0) return { matched: false };
-    
-        const me = myEntry.rows[0]!;
-    
+    const me = await matchmakingRepository.findQueueEntry(userId);
 
-    // 2. Tìm bất kỳ người nào đang chờ, cùng mode + time control
-    // Không filter rating — phù hợp khi ít player (đồ án / demo)
-    // ORDER BY created_at ASC → ưu tiên người chờ lâu nhất
-    const opponentResult = await pool.query<QueueEntry>(
-        `
-        SELECT
-            user_id             AS "userId",
-            mode,
-            time_control_type   AS "timeControlType",
-            rating_at_queue     AS "ratingAtQueue",
-            created_at          AS "createdAt"
-        FROM matchmaking_queue
-        WHERE user_id != $1
-            AND mode = $2
-            AND time_control_type = $3
-        ORDER BY created_at ASC
-        LIMIT 1
-        FOR UPDATE SKIP LOCKED
-        `,
-        [userId, me.mode, me.timeControlType]
-    );
-    
-    if (opponentResult.rows.length === 0) return { matched: false };
-    
-    const opponent = opponentResult.rows[0]!;
+    if (!me) return { matched: false };
 
-    // 3. Random màu quân
+    const opponent = await matchmakingRepository.findOpponent(userId, me.mode, me.timeControlType);
+
+    if (!opponent) return { matched: false };
+
+    // Randomize colors.
     const whitePlayerId = Math.random() < 0.5 ? userId : opponent.userId;
     const blackPlayerId = whitePlayerId === userId ? opponent.userId : userId;
-    // 4. Tạo room code unique
-    let roomCode = generateRoomCode();
-    let attempts = 0;
-    while (attempts < 5) {
-        const existing = await pool.query(
-            `SELECT 1 FROM games WHERE room_code = $1`,
-            [roomCode]
-        );
-        if (existing.rows.length === 0) break;
-        roomCode = generateRoomCode();
-        attempts++;
-    }
-    
+    const roomCode = await generateUniqueRoomCode();
     const preset = TIME_CONTROL_PRESETS[me.timeControlType as TimeControlType];
-    
-    // 5. Tạo game record
+
+    // 5. Táº¡o game record
     const game = await gameRepository.createGame({
         whitePlayerId,
         blackPlayerId,
@@ -162,12 +102,10 @@ export const findMatch = async (userId: string): Promise<MatchmakingResult> => {
         whiteRatingSnapshot: whitePlayerId === userId ? me.ratingAtQueue : opponent.ratingAtQueue,
         blackRatingSnapshot: blackPlayerId === userId ? me.ratingAtQueue : opponent.ratingAtQueue,
     });
-    // 6. Xóa cả 2 khỏi queue
-    await pool.query(
-        `DELETE FROM matchmaking_queue WHERE user_id IN ($1, $2)`,
-        [userId, opponent.userId]
-    );
- 
+
+    // 6. XÃ³a cáº£ 2 khá»i queue
+    await matchmakingRepository.deleteQueueEntries([userId, opponent.userId]);
+
     logger.log("Match found", {
         gameId: game.id,
         roomCode,
@@ -175,7 +113,7 @@ export const findMatch = async (userId: string): Promise<MatchmakingResult> => {
         black: blackPlayerId,
         timeControl: me.timeControlType,
     });
- 
+
     return {
         matched: true,
         gameId: game.id,
@@ -189,20 +127,9 @@ export const findMatch = async (userId: string): Promise<MatchmakingResult> => {
 };
 
 /**
- * Lấy số người đang trong queue (theo từng time control)
- * Dùng để hiển thị "X players waiting"
+ * Láº¥y sá»‘ ngÆ°á»i Ä‘ang trong queue (theo tá»«ng time control)
+ * DÃ¹ng Ä‘á»ƒ hiá»ƒn thá»‹ "X players waiting"
  */
 export const getQueueStats = async () => {
-    const result = await pool.query(
-        `
-        SELECT
-            time_control_type   AS "timeControlType",
-            mode,
-            COUNT(*)            AS count
-        FROM matchmaking_queue
-        GROUP BY time_control_type, mode
-        ORDER BY time_control_type, mode
-        `
-    );
-    return result.rows;
+    return matchmakingRepository.getQueueStats();
 };

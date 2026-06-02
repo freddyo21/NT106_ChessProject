@@ -33,6 +33,7 @@ Thumbs.db
 .env.*.local
 *.env.bak
 *.env.old
+backend/certs/
 
 # [--- DATABASE (PostgreSQL) ---]
 *.sql

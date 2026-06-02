@@ -3,7 +3,7 @@ import * as authService from "../services/auth.service";
 import { validateLoginRequest } from "../schemas/auth/LoginRequestDTO";
 import { validateRegisterRequest } from "../schemas/auth/RegisterRequestDTO";
 import { ChangePasswordRequestSchema, LoginResponseDTO, UserResponseSchema } from "@zess-online-chess/shared";
-import { ForbiddenException, InvalidCredentialException } from "../exceptions";
+import { InvalidCredentialException } from "../exceptions";
 
 const ACCESS_TOKEN_EXPIRY = 15 * 60; // 15 minutes
 

@@ -1,6 +1,7 @@
 import { Pool } from "pg";
 
 const isProduction = process.env.NODE_ENV === "production";
+const useSsl = isProduction || process.env.DATABASE_SSL === "true";
 
 export const pool = new Pool({
     ...(process.env.DATABASE_URL && process.env.DATABASE_URL !== ""
@@ -12,7 +13,7 @@ export const pool = new Pool({
             password: process.env.DB_PASSWORD,
             database: process.env.DB_NAME,
         }),
-    ssl: isProduction
+    ssl: useSsl
         ? { rejectUnauthorized: false }
         : false,
 });

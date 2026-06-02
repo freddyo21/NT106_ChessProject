@@ -1,4 +1,4 @@
-import { Request, Response } from "express"
+import { Request, Response } from "express";
 import * as gameplayService from "../services/gameplay.service";
 import { InvitationParametersSchema, SuccessResponseSchema } from "@zess-online-chess/shared";
 
@@ -19,7 +19,7 @@ export const createInvitationCode = async (req: Request, res: Response) => {
         //     return res.status(400).json({ error: "Missing room id" });
         // }
 
-        const { code, expiresAt } = gameplayService.createInvitationCode(roomId);
+        const { code, expiresAt } = await gameplayService.createInvitationCode(roomId);
 
         const success = SuccessResponseSchema.parse({
             message: "Invitation code created successfully",
@@ -31,7 +31,7 @@ export const createInvitationCode = async (req: Request, res: Response) => {
         });
 
         return res.status(201).json(success);
-    } catch (error) {
+    } catch {
         return res.status(500).json({
             error: "Failed to create invitation code"
         });

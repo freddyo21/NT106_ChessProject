@@ -1,6 +1,7 @@
 import { Socket } from "socket.io";
 import { DEFAULT_ELO } from "@zess-online-chess/shared";
 import { Logger } from "../utils/Logger";
+import { createMatchedGameRoom } from "./room-management.socket";
 
 type WaitingPlayer = {
     userId: string;
@@ -19,8 +20,9 @@ const waitingPlayers = new Map<string, WaitingPlayer>();
 const logger = new Logger("matchmaking-socket");
 
 const createRoomId = () => {
+    const timestamp = Date.now().toString(36);
     const suffix = Math.random().toString(36).slice(2, 8);
-    return `quick-${Date.now()}-${suffix}`;
+    return `q-${timestamp}-${suffix}`;
 };
 
 const buildOpponentPayload = (player: WaitingPlayer) => ({
@@ -44,7 +46,7 @@ export function matchmakingSocket(socket: Socket) {
         return;
     }
 
-    socket.on("quick_match:join", (callback?: (payload: QuickMatchCallbackPayload) => void) => {
+    socket.on("quick_match:join", async (callback?: (payload: QuickMatchCallbackPayload) => void) => {
         removeWaitingPlayer(userId);
 
         const opponent = [...waitingPlayers.values()].find((entry) => entry.userId !== userId);
@@ -74,6 +76,30 @@ export function matchmakingSocket(socket: Socket) {
             socket,
             joinedAt: Date.now(),
         };
+
+        try {
+            await createMatchedGameRoom(roomId, [
+                {
+                    userId: opponent.userId,
+                    socketId: opponent.socket.id,
+                    color: "white",
+                    username: opponent.username,
+                    elo: opponent.elo,
+                },
+                {
+                    userId: currentPlayer.userId,
+                    socketId: currentPlayer.socket.id,
+                    color: "black",
+                    username: currentPlayer.username,
+                    elo: currentPlayer.elo,
+                },
+            ]);
+        } catch (error) {
+            waitingPlayers.set(opponent.userId, opponent);
+            callback?.({ ok: false, message: "Không thể tạo phòng đấu." });
+            logger.error("Quick match room creation failed", { roomId, error });
+            return;
+        }
 
         opponent.socket.join(roomId);
         socket.join(roomId);

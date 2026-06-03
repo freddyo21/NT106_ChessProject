@@ -28,7 +28,7 @@ export const login = async (data: LoginRequestDTO) => {
 
         const parsedUser = UserSchema.parse(userRow);
         const accessToken = generateToken(parsedUser, ACCESS_TOKEN_EXPIRY);
-        const refreshToken = generateRefreshToken(parsedUser.id, rememberMe ? "30d" : REFRESH_TOKEN_EXPIRY);
+        const refreshToken = await generateRefreshToken(parsedUser.id, rememberMe ? "30d" : REFRESH_TOKEN_EXPIRY);
 
         const { passwordHash, ...userWithoutHash } = parsedUser;
         const safeUser = UserResponseSchema.parse(userWithoutHash);
@@ -47,7 +47,7 @@ export const login = async (data: LoginRequestDTO) => {
 };
 
 export const refreshTokens = async (refreshToken: string) => {
-    const refreshTokenData = verifyRefreshToken(refreshToken);
+    const refreshTokenData = await verifyRefreshToken(refreshToken);
 
     if (!refreshTokenData) {
         throw new InvalidCredentialException("Invalid or expired refresh token");
@@ -56,16 +56,16 @@ export const refreshTokens = async (refreshToken: string) => {
     const user = await userRepository.findById(refreshTokenData.userId);
 
     if (!user) {
-        revokeRefreshToken(refreshToken);
+        await revokeRefreshToken(refreshToken);
         throw new InvalidCredentialException("User not found");
     }
 
     const parsedUser = UserSchema.parse(user);
     const newAccessToken = generateToken(parsedUser, ACCESS_TOKEN_EXPIRY);
-    const newRefreshToken = generateRefreshToken(parsedUser.id, REFRESH_TOKEN_EXPIRY);
+    const newRefreshToken = await generateRefreshToken(parsedUser.id, REFRESH_TOKEN_EXPIRY);
 
     // Optionally revoke the old refresh token (Refresh Token Rotation)
-    revokeRefreshToken(refreshToken);
+    await revokeRefreshToken(refreshToken);
 
     const { passwordHash, ...userWithoutHash } = parsedUser;
     const safeUser = UserResponseSchema.parse(userWithoutHash);

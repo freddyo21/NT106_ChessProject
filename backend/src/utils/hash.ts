@@ -1,6 +1,6 @@
 import bcrypt from "bcrypt";
 
-const SALT_ROUNDS = 13;
+const SALT_ROUNDS = 10;
 
 export async function hashPassword(password: string, saltRounds: number = SALT_ROUNDS): Promise<string> {
     return bcrypt.hash(password, saltRounds);

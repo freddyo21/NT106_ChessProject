@@ -19,7 +19,7 @@ export const createInvitationCode = async (req: Request, res: Response) => {
         //     return res.status(400).json({ error: "Missing room id" });
         // }
 
-        const { code, expiresAt } = gameplayService.createInvitationCode(roomId);
+        const { code, expiresAt } = await gameplayService.createInvitationCode(roomId);
 
         const success = SuccessResponseSchema.parse({
             message: "Invitation code created successfully",

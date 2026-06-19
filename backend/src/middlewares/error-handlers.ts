@@ -40,6 +40,11 @@ export function errorHandler(
 
     // Build response based on environment and error type
     let response: IErrorResponse;
+    
+    // If headers already sent, delegate to default Express error handler
+    if (res.headersSent) {
+        return next(err);
+    }
 
     if (isProduction && !isOperational) {
         // Unknown error -> generic response

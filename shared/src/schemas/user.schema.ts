@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { ERoles } from "../types";
+import { DEFAULT_ELO } from "../utils";
 
 export const UserSchema = z.object({
     id: z.uuidv7(),
@@ -20,7 +21,8 @@ export const UserSchema = z.object({
     elo: z.number()
         .int()
         .min(0)
-        .default(1200),
+        // Keep registration/profile/socket fallbacks aligned with the shared Elo constant.
+        .default(DEFAULT_ELO),
     role: z.enum(ERoles).default(ERoles.GUEST),
     status: z.enum(["active", "inactive", "pending", "banned"]).default("active"),
     isVerified: z.boolean().default(false),
@@ -49,7 +51,7 @@ export const UpdateUserRequestSchema = UserSchema.pick({
 }).partial().strict();
 
 export const ChangePasswordRequestSchema = z.object({
-    oldPassword: z.string().min(1), // Không cần min(8) ở đây, cứ có là được để check
+    currentPassword: z.string().min(1), // Không cần min(8) ở đây, cứ có là được để check
     newPassword: z.string()
         .min(8, "New password must be at least 8 characters")
         .max(50, "Password too long"),
@@ -57,7 +59,7 @@ export const ChangePasswordRequestSchema = z.object({
 }).strict().refine((data) => data.newPassword === data.confirmPassword, {
     message: "Passwords don't match",
     path: ["confirmPassword"], // Báo lỗi đúng vào field confirm
-}).refine((data) => data.oldPassword !== data.newPassword, {
-    message: "New password must be different from the old one",
+}).refine((data) => data.currentPassword !== data.newPassword, {
+    message: "New password must be different from the current one",
     path: ["newPassword"],
 });

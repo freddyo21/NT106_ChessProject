@@ -2,8 +2,8 @@ import { NextFunction, Request, Response } from "express";
 import * as authService from "../services/auth.service";
 import { validateLoginRequest } from "../schemas/auth/LoginRequestDTO";
 import { validateRegisterRequest } from "../schemas/auth/RegisterRequestDTO";
-import { LoginResponseDTO, UserResponseSchema } from "@zess-online-chess/shared";
-import { InvalidCredentialException } from "../exceptions";
+import { ChangePasswordRequestSchema, LoginResponseDTO, UserResponseSchema } from "@zess-online-chess/shared";
+import { ForbiddenException, InvalidCredentialException } from "../exceptions";
 
 const ACCESS_TOKEN_EXPIRY = 15 * 60; // 15 minutes
 
@@ -24,7 +24,10 @@ export const login = async (req: Request, res: Response<LoginResponseDTO>, next:
             accessToken,
             refreshToken,
             expiresIn: ACCESS_TOKEN_EXPIRY,
-            user: { ...UserResponseSchema.parse(user), isVerified: true }
+            user: {
+                ...UserResponseSchema.parse(user),
+                isVerified: true // Cần xóa đi sau khi thêm logic verified
+            }
         });
     } catch (err) {
         next(err);
@@ -102,8 +105,17 @@ export const forgotPassword = async (req: Request, res: Response, next: NextFunc
 
 export const changePassword = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const { currentPassword, newPassword, confirmPassword } = req.body;
-        const userId = (req as any).user?.id; // Assuming JWT middleware attaches user to request
+        const parsedData = ChangePasswordRequestSchema.safeParse(req.body);
+
+        if (!parsedData.success) {
+            // Return validation errors as an InvalidCredentialException
+            const errMsg = parsedData.error.issues.map(issue => `${issue.path.join(".")}: ${issue.message}`).join("; ");
+            throw new InvalidCredentialException(`Invalid request payload: ${errMsg}`);
+        }
+
+        const { currentPassword, newPassword, confirmPassword } = parsedData.data;
+
+        const userId = (req as any).user?.sub; // Assuming JWT middleware attaches user to request
 
         if (!userId) {
             throw new InvalidCredentialException("User not authenticated");

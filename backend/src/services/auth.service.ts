@@ -3,9 +3,13 @@ import { randomBytes } from "node:crypto";
 import { ZodError } from "zod";
 import { InvalidCredentialException } from "../exceptions";
 import { deleteExpiredAuthTokens, storeAuthToken } from "../repositories/auth-token.repository";
+import { Exception, InvalidCredentialException } from "../exceptions";
 import * as userRepository from "../repositories/user.repository";
 import { comparePassword, hashPassword } from "../utils/hash";
 import { generateRefreshToken, generateToken, revokeRefreshToken, verifyRefreshToken } from "../utils/jwt-handler";
+import { ZodError } from "zod";
+import crypto from "crypto";
+import ms from "ms";
 
 const ACCESS_TOKEN_EXPIRY = "15m";
 const REFRESH_TOKEN_EXPIRY = "7d";
@@ -50,7 +54,7 @@ export const login = async (data: LoginRequestDTO) => {
             throw error;
         }
 
-        throw new Error("Authentication service failed", { cause: error });
+        throw new Exception("Authentication service failed");
     }
 };
 
@@ -72,6 +76,7 @@ export const refreshTokens = async (refreshToken: string) => {
     const newAccessToken = generateToken(parsedUser, ACCESS_TOKEN_EXPIRY);
     const newRefreshToken = await generateRefreshToken(parsedUser.id, REFRESH_TOKEN_EXPIRY);
 
+    // Optionally revoke the old refresh token (Refresh Token Rotation)
     await revokeRefreshToken(refreshToken);
 
     const safeUser = toSafeUser(parsedUser);
@@ -119,8 +124,13 @@ export const logout = async (refreshToken: string) => {
     await revokeRefreshToken(refreshToken);
 };
 
+// Store for password reset tokens (should use Redis in production)
+const resetTokenStore = new Map<string, { userId: string; expiresAt: number }>();
+
+const RESET_TOKEN_EXPIRY = ms("15m"); // 15 minutes
+
 const generateResetToken = (): string => {
-    return randomBytes(32).toString("hex");
+    return crypto.randomBytes(32).toString("hex");
 };
 
 const cleanupExpiredResetTokens = async () => {
@@ -134,7 +144,7 @@ export const forgotPassword = async (email: string) => {
 
     if (user) {
         const resetToken = generateResetToken();
-        const expiresAtMs = Date.now() + RESET_TOKEN_EXPIRY_MS;
+        const expiresAtMs = Date.now() + RESET_TOKEN_EXPIRY * 60 * 1000;
 
         await storeAuthToken(resetToken, user.id, "password_reset", expiresAtMs);
 

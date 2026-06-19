@@ -1,4 +1,5 @@
 import axios from "axios";
+import { clearAuthSession, getAccessToken, getRefreshToken, setAuthSession } from "./authSession";
 
 const serverApiUrl = import.meta.env.VITE_SERVER_API_URL;
 
@@ -35,7 +36,7 @@ HttpClient.interceptors.request.use(
 
     if (!isPublicRoute) {
       // Lấy token từ nơi lưu trữ
-      const accessToken = localStorage.getItem("accessToken");
+      const accessToken = getAccessToken();
       // const token = null;
 
       // Nếu có token, tự động gắn vào Header Authorization
@@ -84,9 +85,22 @@ HttpClient.interceptors.response.use(
       originalRequest._retry = true;
 
       try {
-        // Gọi API để làm mới token
-        const response = await HttpClient.post("/auth/refresh");
-        const { accessToken } = response.data;
+        const refreshToken = getRefreshToken();
+
+        if (!refreshToken) {
+          clearAuthSession();
+          return Promise.reject(err);
+        }
+
+        // Refresh token rotation returns a new user/token pair; keep local session in sync before retrying.
+        const response = await HttpClient.post("/auth/refresh", { refreshToken });
+        const { accessToken, refreshToken: nextRefreshToken, user } = response.data;
+
+        setAuthSession({
+          accessToken,
+          refreshToken: nextRefreshToken,
+          user,
+        });
 
         processQueue(null, accessToken);
         isRefreshing = false;
@@ -96,6 +110,7 @@ HttpClient.interceptors.response.use(
       } catch (error) {
         processQueue(error, null);
         isRefreshing = false;
+        clearAuthSession();
         return Promise.reject(error);
       }
     }

@@ -17,6 +17,7 @@ export const authMiddleware = (req: JwtRequest, _res: Response, next: NextFuncti
 
     try {
         const payload = validateToken(token);
+
         if (!payload.sub) {
             return next(new JwtInvalidException("Invalid authorization token"));
         }
@@ -25,9 +26,9 @@ export const authMiddleware = (req: JwtRequest, _res: Response, next: NextFuncti
             ...payload,
             id: payload.sub,
         };
+
+        return next();
     } catch (error) {
         return next(error);
     }
-
-    return next();
 };

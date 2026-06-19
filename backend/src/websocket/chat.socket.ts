@@ -1,10 +1,11 @@
+import { ChatPayloadSchema } from "@zess-online-chess/shared";
 import { Socket } from "socket.io";
 import { Logger } from "../utils/Logger";
 import { createSocketRateLimiter } from "../middlewares/socket.limiter";
 
 const chatRateLimiter = createSocketRateLimiter({
     rules: {
-        send_message: {
+        chat: {
             windowMs: 5_000,
             max: 5,
             blockDurationMs: 15_000
@@ -29,35 +30,51 @@ const chatRateLimiter = createSocketRateLimiter({
     }
 });
 
+const LOBBY_ROOM = "lobby";
+
 export const chatSocket = async (socket: Socket) => {
     socket.use(chatRateLimiter.middleware(socket));
     const logger = new Logger("chat-socket");
+    socket.join(LOBBY_ROOM);
 
-    socket.on("send_message", async (data) => {
+    socket.on("chat", async (data) => {
         try {
-            if (!data || typeof data !== "object") return;
+            const result = ChatPayloadSchema.safeParse(data);
 
-            const { roomId, message } = data;
+            if (!result.success) {
+                return socket.emit("chat_error", { message: "Invalid chat payload" });
+            }
 
+            const { roomId, message } = result.data;
+            const userId = socket.data.user?.id;
             const username = socket.data.user?.username || "Unknown User";
 
-            // const filteredMessage = await chatFilter(message);
+            const payload = {
+                roomId: roomId ?? null,
+                userId,
+                username,
+                message,
+                timestamp: new Date().toISOString(),
+            };
 
-            if (!roomId || !username || !message) return;
+            if (roomId) {
+                if (!socket.rooms.has(roomId)) {
+                    return socket.emit("chat_error", { message: "You are not in this room" });
+                }
 
-            if (!socket.rooms.has(roomId)) return;
+                socket.nsp.to(roomId).emit("chat", payload);
+                return;
+            }
 
-            logger.log(`
-                CHAT_MESSAGE | Room: ${roomId} | User: ${username} | Content: ${message}
-            `);
-
-            socket.to(roomId).emit("receive_message", {
+            socket.nsp.to(roomId).emit("chat", {
+                id: `${Date.now()}-${socket.id}`,
+                userId: socket.data.user?.id,
                 username,
                 message,
                 timestamp: new Date().toISOString()
             });
         } catch (error) {
-            logger.error("SEND_MESSAGE_ERROR", error);
+            logger.error("CHAT_ERROR", error);
             socket.emit("chat_error", {
                 message: "Invalid message payload"
             });

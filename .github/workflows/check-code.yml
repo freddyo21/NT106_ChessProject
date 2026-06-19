@@ -4,52 +4,55 @@ on:
     branches: ["main", "develop"]
   pull_request:
     branches: ["main", "develop"]
+
 jobs:
   backend-check:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: zess-online-chess-backend
     steps:
       - name: Checkout mã nguồn
         uses: actions/checkout@v4
 
-      - name: Thiết lập Node.js
+      - name: Thiết lập Node.js và Cache Root
         uses: actions/setup-node@v4
         with:
           node-version: "lts/*"
           cache: "npm"
-          cache-dependency-path: zess-online-chess-backend/package-lock.json
+          cache-dependency-path: package-lock.json
 
-      - name: Cài đặt dependencies
+      # Cài đặt toàn bộ Monorepo để đảm bảo nhận diện được folder shared
+      - name: Cài đặt dependencies toàn hệ thống
         run: npm ci
 
-      - name: Kiểm tra Lint
-        run: npm run lint --if-present
+      - name: Kiểm tra TypeScript Compile (Backend)
+        run: npm run build --prefix backend --if-present
 
-      - name: Chạy Unit Test
-        run: npm test --if-present
+      - name: Kiểm tra Lint (Backend)
+        run: npm run lint --prefix backend --if-present
+
+      - name: Chạy Unit Test (Backend)
+        run: npm test --prefix backend --if-present
+
   frontend-check:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: zess-online-chess
     steps:
       - name: Checkout mã nguồn
         uses: actions/checkout@v4
 
-      - name: Thiết lập Node.js
+      - name: Thiết lập Node.js và Cache Root
         uses: actions/setup-node@v4
         with:
           node-version: "lts/*"
           cache: "npm"
-          cache-dependency-path: zess-online-chess/package-lock.json
+          cache-dependency-path: package-lock.json
 
-      - name: Cài đặt dependencies
+      - name: Cài đặt dependencies toàn hệ thống
         run: npm ci
 
-      - name: Kiểm tra Lint
-        run: npm run lint --if-present
+      - name: Kiểm tra TypeScript Compile (Frontend)
+        run: npm run build --prefix frontend --if-present
 
-      - name: Chạy Unit Test
-        run: npm test --if-present
+      - name: Kiểm tra Lint (Frontend)
+        run: npm run lint --prefix frontend --if-present
+
+      - name: Chạy Unit Test (Frontend)
+        run: npm test --prefix frontend --if-present

@@ -10,6 +10,7 @@ import helmet from "helmet";
 import { socketInitialize } from "./websocket";
 import { createServer } from "http";
 import { Server as HttpServer } from "http";
+import { connectRedis, disconnectRedis } from "./config/redis.config";
 
 let httpServer: HttpServer | null = null;
 
@@ -20,10 +21,24 @@ async function initializeApp() {
     setupRoutes(app);
     setupErrorHandling(app);
 
+
+    if (process.env.REDIS_ENABLED === "true") {
+        await connectRedis();
+    }
     httpServer = createServer(app);
     await socketInitialize(httpServer);
 
-    const PORT = process.env.PORT || 3000;
+    const portArgIndex = process.argv.indexOf("--port");
+    if (portArgIndex === -1 || portArgIndex === process.argv.length - 1) {
+        console.warn("No port specified, defaulting to 3000");
+    }
+
+    const portArg =
+        portArgIndex !== -1 && portArgIndex < process.argv.length - 1
+            ? process.argv[portArgIndex + 1]
+            : undefined;
+    const PORT = portArg ? parseInt(portArg, 10) : 3000;
+
     return new Promise<void>((resolve, reject) => {
         httpServer!.listen(PORT, () => {
             console.log(`Zess Chess System is running on port ${PORT}`);
@@ -46,9 +61,9 @@ initializeApp().catch(err => {
 });
 
 /**
- * ═══════════════════════════════════════════════════════════
+ * ----------------------------------------------------------
  * GRACEFUL SHUTDOWN HANDLER
- * ═══════════════════════════════════════════════════════════
+ * ----------------------------------------------------------
  */
 function setupGracefulShutdown() {
     const signals = ["SIGTERM", "SIGINT"];
@@ -75,10 +90,13 @@ function setupGracefulShutdown() {
 
             // Wait for all connections to close
             // Socket.io will handle its own connection cleanup
-            httpServer.once("close", () => {
+            httpServer.once("close", async () => {
                 clearTimeout(shutdownTimeout);
                 console.log("All connections closed, shutting down gracefully");
 
+                if (process.env.REDIS_ENABLED === "true") {
+                    await disconnectRedis();
+                }
                 // TODO: Add your cleanup here
                 // await database.disconnect();
                 // await redis.disconnect();

@@ -1,22 +1,54 @@
 import { Server as HttpServer } from "node:http";
 import { Server, Socket } from "socket.io";
-import { roomManagementSocket, gameplaySocket, chatSocket } from "./";
+import { roomManagementSocket, gameplaySocket, chatSocket, matchmakingSocket, lobbySocket, presenceSocket } from "./";
 import { Logger } from "../utils/Logger";
 import { jwtVerify } from "../auth/jwt-verify";
 import { JwtInvalidException } from "../exceptions";
+import { createAdapter } from "@socket.io/redis-adapter";
+import { createRedisPubSubClients } from "../config/redis.config";
 
 // Track disconnect timeouts to clean up on reconnect
 const disconnectTimeouts = new Map<string, NodeJS.Timeout>();
 
+const getAllowedOrigins = () => {
+    const configuredOrigins = (
+        process.env.FRONTEND_CORS_ALLOWED_ORIGINS ||
+        process.env.FRONTEND_CORS_ALLOWED ||
+        ""
+    )
+        ?.split(",")
+        .map((origin) => origin.trim())
+        .filter(Boolean);
+
+    if (configuredOrigins?.length) {
+        return configuredOrigins;
+    }
+
+    return [
+        "http://localhost:1420",
+        "http://127.0.0.1:1420",
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:1421",
+        "http://127.0.0.1:1421",
+    ];
+};
+
 export const socketInitialize = async (httpServer: HttpServer) => {
     const io = new Server(httpServer, {
         cors: {
-            origin: process.env.FRONTEND_CORS_ALLOWED || "http://localhost:1420",
+            origin: getAllowedOrigins(),
             methods: ["GET", "POST"]
         }
     });
 
     const logger = new Logger("socket");
+
+    if (process.env.REDIS_ENABLED === "true") {
+        const { pubClient, subClient } = await createRedisPubSubClients();
+        io.adapter(createAdapter(pubClient, subClient));
+        logger.log("Socket.IO Redis adapter enabled");
+    }
 
     io.use((socket, next) => {
         const token = socket.handshake.auth?.token;
@@ -27,19 +59,24 @@ export const socketInitialize = async (httpServer: HttpServer) => {
 
         try {
             const user = jwtVerify(token);
+            const userId =
+                typeof user.sub === "string"
+                    ? user.sub
+                    : (user as { sub?: string }).sub;
 
             // Validate user ID exists
-            if (!user?.id) {
+            if (!userId) {
                 return next(new JwtInvalidException("Invalid user ID"));
             }
 
-            socket.data.user = user;
+            socket.data.user = { ...user, id: userId };
             next();
         } catch (err) {
             if (err instanceof JwtInvalidException) {
                 return next(err);
             }
-            next(new JwtInvalidException("Invalid token"));
+
+            return next(new JwtInvalidException("Invalid token"));
         }
     });
 
@@ -64,6 +101,9 @@ export const socketInitialize = async (httpServer: HttpServer) => {
 
         gameplaySocket(socket);
         chatSocket(socket);
+        lobbySocket(socket);
+        matchmakingSocket(socket);
+        presenceSocket(socket);
         roomManagementSocket(socket);
 
         socket.on("disconnect", () => {

@@ -1,0 +1,384 @@
+/* ═══════════════════════════════════════
+   MATCH HISTORY PAGE
+   Đồng bộ theme với LeaderboardPage:
+   - Dùng cùng CSS variables từ LeaderboardPage
+   - Màu accent tím/indigo thay vì xanh navy
+   - Card background, border, shadow giống hệt
+═══════════════════════════════════════ */
+
+* {
+  box-sizing: border-box;
+}
+
+.match-history-page {
+  min-height: 100vh;
+  padding: 28px 20px 36px;
+  /* Giống leaderboard-page: cùng padding */
+  color: var(--leaderboard-text-primary, #f5f7fb);
+  box-sizing: border-box;
+  background: transparent;
+}
+
+/* Shell → đổi max-width thành 1200px giống leaderboard-container */
+.match-history-shell {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0;
+}
+
+/* ── HEADER ── */
+.match-history-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.match-history-back-button {
+  min-width: 156px;
+  height: 48px;
+  border: 1px solid var(--leaderboard-border, rgba(255,255,255,0.1));
+  background: var(--leaderboard-card-bg-soft, rgba(255,255,255,0.04));
+  color: var(--leaderboard-text-primary, #f5f7fb);
+  border-radius: 12px;
+  padding: 0 18px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+}
+
+.match-history-back-button:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--leaderboard-shadow, 0 10px 30px rgba(0,0,0,0.18));
+}
+
+/* Kicker: đổi màu sang accent tím giống leaderboard-kicker */
+.match-history-kicker {
+  margin: 0 0 6px;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--leaderboard-accent, #7c5cff);
+}
+
+.match-history-header h1 {
+  margin: 0;
+  font-size: 34px;
+  font-weight: 800;
+  color: var(--leaderboard-text-primary, #f5f7fb);
+}
+
+.match-history-subtitle {
+  margin: 8px 0 0;
+  color: var(--leaderboard-text-secondary, #b8c0d4);
+  line-height: 1.6;
+}
+
+.match-history-header-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+/* ── PANEL — dùng cùng card style với leaderboard ── */
+.match-history-panel {
+  border-radius: 18px;
+  background: var(--leaderboard-card-bg, rgba(255,255,255,0.06));
+  border: 1px solid var(--leaderboard-border, rgba(255,255,255,0.1));
+  box-shadow: var(--leaderboard-shadow, 0 10px 30px rgba(0,0,0,0.18));
+}
+
+.match-history-filter-panel {
+  padding: 22px;
+  margin-bottom: 24px;
+}
+
+.panel-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.panel-title-row h2 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: var(--leaderboard-text-primary, #f5f7fb);
+}
+
+/* Badge tag: đổi sang leaderboard-chip tím */
+.panel-tag {
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: var(--leaderboard-accent-soft, rgba(124,92,255,0.16));
+  color: var(--leaderboard-accent, #7c5cff);
+  font-size: 13px;
+  font-weight: 700;
+  border: none;
+}
+
+.match-history-filter-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  align-items: end;
+}
+
+.field-label {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: var(--leaderboard-text-primary, #f5f7fb);
+  font-weight: 600;
+  font-size: 14px;
+}
+
+/* Input: giống leaderboard-search-input */
+.match-history-input {
+  width: 100%;
+  height: 46px;
+  padding: 0 14px;
+  border: 1px solid var(--leaderboard-border, rgba(255,255,255,0.1));
+  border-radius: 12px;
+  background: var(--leaderboard-card-bg-soft, rgba(255,255,255,0.04));
+  color: var(--leaderboard-text-primary, #f5f7fb);
+  font: inherit;
+  outline: none;
+}
+
+.match-history-input:focus {
+  border-color: var(--leaderboard-accent, #7c5cff);
+  box-shadow: 0 0 0 3px var(--leaderboard-accent-soft, rgba(124,92,255,0.16));
+}
+
+.match-history-search-wrap {
+  display: flex;
+  align-items: end;
+}
+
+/* ── BUTTONS ── */
+.primary-btn,
+.ghost-btn {
+  height: 46px;
+  padding: 0 18px;
+  border-radius: 12px;
+  font-weight: 700;
+  font: inherit;
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+/* Primary: dùng màu accent tím giống leaderboard */
+.primary-btn {
+  width: 100%;
+  border: none;
+  background: var(--leaderboard-accent, #7c5cff);
+  color: #ffffff;
+  box-shadow: 0 10px 24px rgba(124, 92, 255, 0.28);
+}
+
+.primary-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--leaderboard-shadow);
+  opacity: 0.96;
+}
+
+/* Ghost: giống leaderboard-back-button */
+.ghost-btn {
+  border: 1px solid var(--leaderboard-border, rgba(255,255,255,0.1));
+  background: var(--leaderboard-card-bg-soft, rgba(255,255,255,0.04));
+  color: var(--leaderboard-text-primary, #f5f7fb);
+}
+
+.ghost-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--leaderboard-shadow);
+}
+
+/* ── GRID ── */
+.match-history-grid {
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr);
+  gap: 20px;
+}
+
+.match-history-stats-panel {
+  padding: 22px;
+}
+
+.match-history-stats-list {
+  display: grid;
+  gap: 12px;
+}
+
+/* Stat card: giống leaderboard-top-card */
+.match-stat-card {
+  padding: 16px 18px;
+  border: 1px solid var(--leaderboard-border, rgba(255,255,255,0.1));
+  border-radius: 16px;
+  background: var(--leaderboard-card-bg-soft, rgba(255,255,255,0.04));
+  transition: transform 0.2s ease;
+}
+
+.match-stat-card:hover {
+  transform: translateY(-2px);
+}
+
+.match-stat-label {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--leaderboard-text-secondary, #b8c0d4);
+  font-size: 0.95rem;
+}
+
+.match-stat-card strong {
+  font-size: 1.6rem;
+  color: var(--leaderboard-text-primary, #f5f7fb);
+}
+
+/* Highlight: accent-soft giống current-user-row của leaderboard */
+.match-stat-highlight {
+  background: var(--leaderboard-accent-soft, rgba(124,92,255,0.16));
+  border-color: var(--leaderboard-accent, #7c5cff);
+}
+
+.stat-win  { color: #57d18c !important; }
+.stat-draw { color: var(--leaderboard-highlight, #f0c14b) !important; }
+.stat-loss { color: #ff8b8b !important; }
+
+/* ── TABLE PANEL ── */
+.match-history-table-panel {
+  padding: 22px;
+  min-width: 0;
+}
+
+.list-panel-header {
+  margin-bottom: 16px;
+}
+
+.list-panel-header h2 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: var(--leaderboard-text-primary, #f5f7fb);
+}
+
+.list-panel-header p {
+  margin: 6px 0 0;
+  color: var(--leaderboard-text-secondary, #b8c0d4);
+  font-size: 14px;
+}
+
+.match-history-table-wrapper {
+  overflow: auto;
+  border: 1px solid var(--leaderboard-border, rgba(255,255,255,0.1));
+  border-radius: 14px;
+  background: var(--leaderboard-card-bg-soft, rgba(255,255,255,0.04));
+}
+
+/* Table: copy giống leaderboard-table */
+.match-history-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 600px;
+}
+
+.match-history-table thead th {
+  padding: 16px 14px;
+  background: var(--leaderboard-card-bg-soft, rgba(255,255,255,0.04));
+  color: var(--leaderboard-text-secondary, #b8c0d4);
+  text-align: left;
+  font-size: 14px;
+  font-weight: 800;
+  border-bottom: 1px solid var(--leaderboard-border, rgba(255,255,255,0.1));
+  white-space: nowrap;
+}
+
+.match-history-table tbody td {
+  padding: 16px 14px;
+  color: var(--leaderboard-text-primary, #f5f7fb);
+  border-top: 1px solid var(--leaderboard-border, rgba(255,255,255,0.1));
+  font-size: 14px;
+  vertical-align: middle;
+}
+
+.match-history-table tbody tr:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+/* Badge kết quả */
+.match-result-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 72px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.match-result-badge.win {
+  background: rgba(87, 209, 140, 0.16);
+  color: #69e09d;
+}
+
+.match-result-badge.loss {
+  background: rgba(255, 103, 103, 0.15);
+  color: #ff9292;
+}
+
+/* Hòa: đổi sang vàng leaderboard-highlight thay vì vàng nhạt cũ */
+.match-result-badge.draw {
+  background: rgba(240, 193, 75, 0.16);
+  color: var(--leaderboard-highlight, #f0c14b);
+}
+
+.empty-state {
+  padding: 40px 18px;
+  text-align: center;
+  color: var(--leaderboard-text-secondary, #b8c0d4);
+  font-weight: 600;
+}
+
+/* ── RESPONSIVE ── */
+@media (max-width: 1100px) {
+  .match-history-filter-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .match-history-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 900px) {
+  /* Cùng breakpoint với leaderboard */
+  .match-history-header {
+    flex-direction: column;
+  }
+
+  .match-history-header h1 {
+    font-size: 28px;
+  }
+}
+
+@media (max-width: 640px) {
+  /* Cùng breakpoint với leaderboard */
+  .match-history-page {
+    padding: 18px 12px 28px;
+  }
+
+  .match-history-filter-grid {
+    grid-template-columns: 1fr;
+  }
+}

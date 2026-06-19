@@ -1,0 +1,39 @@
+{
+  "name": "zess-online-chess",
+  "version": "1.0.5",
+  "private": true,
+  "workspaces": [
+    "backend",
+    "frontend",
+    "shared"
+  ],
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "build:shared": "npm --workspace=shared run build",
+    "build:backend": "npm --workspace=backend run build",
+    "build:frontend": "npm --workspace=frontend run build",
+    "build:frontend:tauri": "npm --workspace=frontend run tauri build",
+    "build": "npm run build:shared && concurrently --names backend,frontend -c \"#f20,#0a0\" --prefix \"[{name}]\" \"npm run build:backend\" \"npm run build:frontend\"",
+    "dev:shared": "npm --workspace=shared run dev",
+    "dev:backend": "npm --workspace=backend run dev",
+    "dev:frontend": "npm --workspace=frontend run dev -- --host 127.0.0.1 --port 1420",
+    "dev:frontend:tauri": "npm --workspace=frontend run tauri dev",
+    "dev": "npm run build:shared && concurrently --names backend,frontend,shared -c \"#f20,#0a0,#ea0\" --prefix \"[{name}]\" \"npm run dev:backend\" \"npm run dev:frontend\" \"npm run dev:shared\"",
+    "start:backend": "npm --workspace=backend start",
+    "start:frontend": "npm --workspace=frontend run preview -- --host 127.0.0.1 --port 1420",
+    "start:frontend:tauri": "npm --workspace=frontend run tauri preview -- --host 0.0.0.0 --port 5173",
+    "start": "npm run build:shared && concurrently --names backend,frontend -c \"#f20,#0a0\" --prefix \"[{name}]\" \"npm run start:backend\" \"npm run start:frontend\"",
+    "lint": "npm --workspaces run lint",
+    "test": "npm --workspace=backend run test"
+  },
+  "dependencies": {
+    "axios": "^1.16.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.0",
+    "rimraf": "^6.1.3"
+  }
+}

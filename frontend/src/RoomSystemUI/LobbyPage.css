@@ -1,0 +1,566 @@
+/* ═══════════════════════════════════════
+   LOBBY PAGE — Zess Online Chess
+   Font được kế thừa từ App.css (Cinzel + Inter)
+═══════════════════════════════════════ */
+
+.lobby-page {
+  min-height: 100vh;
+  padding: 20px;
+  box-sizing: border-box;
+  color: #f8fafc;
+  background: transparent;
+}
+
+.lobby-desktop {
+  width: min(1440px, 100%);
+  height: calc(100vh - 40px);
+  margin: 0 auto;
+  overflow: hidden;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 16px;
+  background:
+    linear-gradient(rgba(2, 6, 23, 0.18), rgba(2, 6, 23, 0.42)),
+    rgba(5, 10, 18, 0.72);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(10px);
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── TOPBAR ── */
+.lobby-topbar {
+  flex-shrink: 0;
+  min-height: 68px;
+  display: grid;
+  grid-template-columns: 210px minmax(0, 1fr) auto;
+  align-items: stretch;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02)),
+    rgba(4, 8, 14, 0.92);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* [1] Logo to hơn, không có hover glow */
+.lobby-logo-box {
+  border: none;
+  border-right: 1px solid rgba(255, 255, 255, 0.07);
+  background: rgba(255, 255, 255, 0.04);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 14px;
+}
+
+  .lobby-logo-box img {
+  width: 100px;
+  height: 54px;
+  object-fit: contain;
+  transform: scale(2);
+  transform-origin: center;
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.4));
+  pointer-events: none;
+}
+
+/* ── NAV ── */
+.lobby-nav {
+  display: flex;
+  align-items: stretch;
+}
+
+.lobby-nav-item {
+  min-width: 140px;
+  border: none;
+  border-right: 1px solid rgba(255, 255, 255, 0.05);
+  background: transparent;
+  color: #64748b;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: color 0.15s ease, background 0.15s ease;
+  padding: 0 20px;
+}
+
+.lobby-nav-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: #cbd5e1;
+}
+
+.lobby-nav-item.active {
+  color: #f1f5f9;
+  background: rgba(255, 255, 255, 0.06);
+  box-shadow: inset 0 -2px 0 rgba(255, 255, 255, 0.65);
+}
+
+/* ── ACCOUNT AREA ── */
+.lobby-account-area {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 14px;
+}
+
+.lobby-user-link {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  padding: 8px 14px;
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.06);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: 0.15s ease;
+}
+
+.lobby-user-link span {
+  color: #475569;
+  padding: 0 6px;
+}
+
+.lobby-user-link:hover {
+  border-color: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* "?" — dùng cho cả <button> lẫn <a> */
+.lobby-help-btn {
+  width: 34px;
+  height: 34px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  color: #94a3b8;
+  background: rgba(255, 255, 255, 0.06);
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+}
+
+.lobby-help-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
+
+.lobby-logout-btn {
+  border: none;
+  color: #64748b;
+  background: transparent;
+  font-size: 13px;
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 4px 2px;
+  white-space: nowrap;
+  transition: color 0.15s ease;
+}
+
+.lobby-logout-btn:hover {
+  color: #f87171;
+}
+
+/* ── COVER ── */
+.lobby-cover {
+  flex-shrink: 0;
+  min-height: 220px;
+  position: relative;
+  background-size: cover;
+  background-position: center 30%;
+  background-repeat: no-repeat;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.lobby-cover::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    rgba(0,0,0,0.06) 0%,
+    rgba(0,0,0,0.2) 50%,
+    rgba(0,0,0,0.68) 100%
+  );
+}
+
+/* Chess tile fallback khi mất ảnh */
+.lobby-cover::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(45deg, rgba(255,255,255,0.02) 25%, transparent 25%),
+    linear-gradient(-45deg, rgba(255,255,255,0.02) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, rgba(255,255,255,0.02) 75%),
+    linear-gradient(-45deg, transparent 75%, rgba(255,255,255,0.02) 75%);
+  background-size: 40px 40px;
+  background-position: 0 0, 0 20px, 20px -20px, -20px 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.lobby-cover-overlay {
+  position: relative;
+  z-index: 1;
+  min-height: 220px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding: 24px 40px 28px;
+  text-shadow: 0 4px 20px rgba(0, 0, 0, 0.9);
+}
+
+.lobby-cover-kicker {
+  margin: 0 0 8px;
+  color: #7dd3fc;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.28em;
+}
+
+/* [6] Chỉ còn h1, không có p chú giải dưới */
+.lobby-cover h1 {
+  margin: 0;
+  font-size: clamp(42px, 6vw, 84px);
+  line-height: 0.95;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  font-weight: 900;
+  color: #f8fafc;
+}
+
+/* ── ACTION ROW ── */
+.lobby-action-row {
+  flex-shrink: 0;
+  min-height: 68px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  padding: 12px 24px;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.01)),
+    rgba(3, 7, 18, 0.88);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.lobby-main-btn {
+  min-width: 168px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  padding: 10px 24px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: 0.18s ease;
+}
+
+.lobby-main-btn.primary {
+  color: #0d1a2d;
+  background: linear-gradient(135deg, #f1f5f9, #cbd5e1);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+}
+
+.lobby-main-btn.secondary {
+  color: #e2e8f0;
+  background: linear-gradient(135deg, rgba(30,41,59,0.95), rgba(15,23,42,0.95));
+}
+
+.lobby-main-btn:hover {
+  transform: translateY(-2px);
+  filter: brightness(1.08);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+.lobby-main-btn:active {
+  transform: translateY(0);
+}
+
+/* ── CONTENT GRID ── */
+.lobby-content-grid {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 12px;
+  padding: 12px;
+  background: rgba(2, 6, 18, 0.55);
+  overflow: hidden;
+}
+
+/* ── CHAT PANEL ── */
+.lobby-chat-panel {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+/* Override ChatUI để fill layout */
+.lobby-chat-panel .chat-ui {
+  width: 100%;
+  max-width: none;
+  height: 100%;
+  border-radius: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.12);
+}
+
+/* [3] Ẩn subtitle "Nhấn Enter để gửi..." trong lobby */
+.lobby-chat-panel .chat-ui__subtitle {
+  display: none;
+}
+
+/* [4] Ẩn badge "Sẵn sàng" trong lobby */
+.lobby-chat-panel .chat-ui__status {
+  display: none;
+}
+
+/* [5] Avatar SVG */
+.chat-ui__avatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, #1e3a5f, #0f2040);
+  border: 1px solid rgba(125, 211, 252, 0.2);
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.chat-ui__avatar-img {
+  width: 26px;
+  height: 26px;
+  object-fit: contain;
+  filter: invert(1) brightness(0.85) sepia(1) hue-rotate(180deg) saturate(2);
+}
+
+/* ── PLAYERS PANEL ── */
+.lobby-players-panel {
+  min-width: 0;
+  min-height: 0;
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  border-radius: 14px;
+  background: linear-gradient(180deg, rgba(15,23,42,0.9), rgba(5,10,18,0.92));
+  backdrop-filter: blur(10px);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Vùng cuộn danh sách người chơi */
+.lobby-players-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.lobby-players-scroll::-webkit-scrollbar {
+  width: 3px;
+}
+
+.lobby-players-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.lobby-players-scroll::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.18);
+  border-radius: 2px;
+}
+
+.lobby-players-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.32);
+}
+
+/* ── RESPONSIVE ── */
+@media (max-width: 1180px) {
+  .lobby-topbar {
+    grid-template-columns: 210px 1fr;
+  }
+
+  .lobby-account-area {
+    grid-column: 1 / -1;
+    justify-content: flex-end;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    padding: 8px 14px;
+  }
+
+  .lobby-content-grid {
+    grid-template-columns: 1fr;
+    overflow-y: auto;
+  }
+
+  .lobby-players-panel {
+    max-height: 340px;
+  }
+}
+
+@media (max-width: 820px) {
+  .lobby-page {
+    padding: 10px;
+  }
+
+  .lobby-desktop {
+    height: calc(100vh - 20px);
+  }
+
+  .lobby-topbar {
+    grid-template-columns: 1fr;
+  }
+
+  .lobby-logo-box {
+    min-height: 60px;
+    border-right: none;
+  }
+
+
+
+  .lobby-nav {
+    overflow-x: auto;
+  }
+
+  .lobby-nav-item {
+    flex: 1;
+    min-width: 120px;
+    min-height: 44px;
+    font-size: 12px;
+  }
+
+  .lobby-account-area {
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  .lobby-cover,
+  .lobby-cover-overlay {
+    min-height: 170px;
+  }
+
+  .lobby-action-row {
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .lobby-main-btn {
+    width: min(100%, 200px);
+    font-size: 12px;
+  }
+
+  .lobby-content-grid {
+    padding: 10px;
+    gap: 10px;
+  }
+}
+
+@media (max-width: 520px) {
+  .lobby-account-area {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .lobby-user-link,
+  .lobby-help-btn {
+    width: 100%;
+  }
+
+  .lobby-logout-btn {
+    padding: 8px 0;
+  }
+}
+/*{giải thích code} Compact ChatUI riêng trong Lobby để khung chat hiện được nhiều tin nhắn hơn */
+.lobby-chat-panel .chat-ui__header {
+  padding: 12px 16px;
+  min-height: 58px;
+}
+
+.lobby-chat-panel .chat-ui__avatar {
+  width: 36px;
+  height: 36px;
+}
+
+.lobby-chat-panel .chat-ui__avatar-img {
+  width: 22px;
+  height: 22px;
+}
+
+.lobby-chat-panel .chat-ui__title {
+  font-size: 16px;
+}
+
+.lobby-chat-panel .chat-ui__messages {
+  padding: 12px 14px;
+  gap: 8px;
+  justify-content: flex-start;
+}
+
+.lobby-chat-panel .chat-ui__message-bubble {
+  max-width: 58%;
+  padding: 8px 10px 7px;
+  border-radius: 12px 12px 12px 5px;
+}
+
+.lobby-chat-panel .chat-ui__message-bubble--own {
+  border-radius: 12px 12px 5px 12px;
+}
+
+.lobby-chat-panel .chat-ui__message-sender {
+  margin-bottom: 4px;
+  font-size: 11px;
+}
+
+.lobby-chat-panel .chat-ui__message-text {
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.lobby-chat-panel .chat-ui__message-time {
+  margin-top: 4px;
+  font-size: 10px;
+}
+
+.lobby-chat-panel .chat-ui__footer {
+  padding: 10px 12px;
+  gap: 10px;
+  align-items: center;
+}
+
+.lobby-chat-panel .chat-ui__input-wrapper {
+  padding: 8px 10px;
+  border-radius: 14px;
+}
+
+.lobby-chat-panel .chat-ui__textarea {
+  min-height: 22px;
+  max-height: 72px;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.lobby-chat-panel .chat-ui__icon-button {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.lobby-chat-panel .chat-ui__send-button {
+  min-width: 74px;
+  height: 42px;
+  border-radius: 13px;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}

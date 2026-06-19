@@ -1,0 +1,333 @@
+/*{Khung chat chính theo phong cách dark gaming, dễ đặt vào lobby/room sau này}*/
+.chat-ui {
+  width: 100%;
+  max-width: 430px;
+  min-width: 0;
+  height: 640px;
+  display: flex;
+  flex-direction: column;
+  background:
+    linear-gradient(180deg, rgba(17, 24, 39, 0.96) 0%, rgba(10, 14, 24, 0.96) 100%);
+  border: 1px solid rgba(107, 114, 128, 0.22);
+  border-radius: 22px;
+  overflow: hidden;
+  box-shadow:
+    0 20px 50px rgba(0, 0, 0, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(14px);
+  color: #f3f4f6;
+  font-family: 'Be Vietnam Pro', Arial, sans-serif;
+}
+
+/*{Header của khung chat}*/
+.chat-ui__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 18px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.chat-ui__header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+/*{Khung tròn chứa logo — tăng lên 52px để logo hiện rõ hơn}*/
+.chat-ui__avatar {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, #1e3a5f, #0f2040);
+  border: 1px solid rgba(125, 211, 252, 0.25);
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+/*{Ảnh logo bên trong avatar — đặt 40px để logo chiếm phần lớn khung}*/
+.chat-ui__avatar-img {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+  /* Lọc màu để logo trắng/xanh hòa với nền tối */
+  filter: brightness(1.1) drop-shadow(0 1px 4px rgba(125, 211, 252, 0.3));
+  pointer-events: none;
+  user-select: none;
+}
+
+.chat-ui__title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: #f9fafb;
+}
+
+.chat-ui__subtitle {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: #9ca3af;
+}
+
+/* Badge "Sẵn sàng" — ẩn hoàn toàn, không cần trong bất kỳ context nào */
+.chat-ui__status {
+  display: none;
+}
+
+.chat-ui__status-dot {
+  display: none;
+}
+
+/*{Vùng hiển thị tin nhắn}*/
+.chat-ui__messages {
+  flex: 1;
+  min-width: 0;
+  padding: 18px 14px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background:
+    radial-gradient(circle at top left, rgba(59, 130, 246, 0.08), transparent 32%),
+    radial-gradient(circle at bottom right, rgba(34, 197, 94, 0.06), transparent 28%);
+}
+
+.chat-ui__messages::-webkit-scrollbar {
+  width: 8px;
+}
+
+.chat-ui__messages::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.22);
+  border-radius: 999px;
+}
+
+.chat-ui__messages::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/*{Trạng thái rỗng khi chưa có tin nhắn}*/
+.chat-ui__empty {
+  flex: 1;
+  min-height: 100%;
+  display: grid;
+  place-content: center;
+  text-align: center;
+  color: #9ca3af;
+  padding: 24px;
+}
+
+.chat-ui__empty-icon {
+  font-size: 36px;
+  margin-bottom: 10px;
+}
+
+.chat-ui__empty-title {
+  margin: 0 0 6px;
+  font-size: 16px;
+  color: #e5e7eb;
+  font-weight: 700;
+}
+
+.chat-ui__empty-text {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/*{Canh hàng tin nhắn trái/phải}*/
+.chat-ui__message-row {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.chat-ui__message-row--own {
+  justify-content: flex-end;
+}
+
+/*{Bong bóng tin nhắn}*/
+.chat-ui__message-bubble {
+  max-width: 78%;
+  padding: 10px 12px 8px;
+  border-radius: 16px 16px 16px 6px;
+  background: rgba(31, 41, 55, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.16);
+}
+
+.chat-ui__message-bubble--own {
+  border-radius: 16px 16px 6px 16px;
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  border-color: rgba(96, 165, 250, 0.28);
+}
+
+.chat-ui__message-sender {
+  display: inline-block;
+  margin-bottom: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #93c5fd;
+}
+
+.chat-ui__message-text {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #f9fafb;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.chat-ui__message-time {
+  display: block;
+  margin-top: 6px;
+  font-size: 11px;
+  text-align: right;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+/*{Footer nhập tin nhắn}*/
+.chat-ui__footer {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+  gap: 12px;
+  padding: 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(10, 14, 24, 0.9);
+}
+
+.chat-ui__input-wrapper {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: rgba(17, 24, 39, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 18px;
+}
+
+.chat-ui__textarea {
+  flex: 1;
+  width: 100%;
+  min-width: 0;
+  min-height: 24px;
+  max-height: 110px;
+  resize: none;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: #f9fafb;
+  font-size: 14px;
+  line-height: 1.5;
+  font-family: inherit;
+}
+
+.chat-ui__textarea::placeholder {
+  color: #6b7280;
+}
+
+.chat-ui__actions {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.chat-ui__icon-button {
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.06);
+  color: #f9fafb;
+  font-size: 22px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    transform 0.18s ease,
+    background 0.18s ease,
+    box-shadow 0.18s ease;
+}
+
+.chat-ui__icon-button:hover {
+  transform: translateY(-1px);
+  background: rgba(255, 255, 255, 0.12);
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.18);
+}
+
+.chat-ui__send-button {
+  min-width: 88px;
+  white-space: nowrap;
+  align-self: stretch;
+  border: none;
+  border-radius: 16px;
+  cursor: pointer;
+  padding: 0 18px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #ffffff;
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+  box-shadow: 0 12px 22px rgba(34, 197, 94, 0.22);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition:
+    transform 0.18s ease,
+    filter 0.18s ease;
+}
+
+.chat-ui__send-button:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.05);
+}
+
+.chat-ui__send-button:active {
+  transform: translateY(0);
+}
+
+/*{Vị trí popup emoji nằm nổi phía trên footer}*/
+.chat-ui__emoji-picker {
+  position: absolute;
+  right: 0;
+  bottom: 52px;
+  z-index: 50;
+  border-radius: 18px;
+  overflow: hidden;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+}
+
+/*{Responsive để nhỏ lại khi cần bỏ vào layout chật hơn}*/
+@media (max-width: 520px) {
+  .chat-ui {
+    max-width: 100%;
+    height: 580px;
+    border-radius: 18px;
+  }
+
+  .chat-ui__message-bubble {
+    max-width: 85%;
+  }
+
+  .chat-ui__send-button {
+    min-width: 74px;
+    padding: 0 14px;
+  }
+
+  .chat-ui__emoji-picker {
+    right: -6px;
+    transform: scale(0.95);
+    transform-origin: bottom right;
+  }
+}

@@ -1,0 +1,756 @@
+* { box-sizing: border-box; }
+
+/* ── Chess page shell ─────────────────────────── */
+.chess-app {
+  min-height: 100vh;
+  padding: 20px;
+  background: transparent;
+  color: #eef4ff;
+  font-family: 'Be Vietnam Pro', Arial, sans-serif;
+}
+
+.chess-shell {
+  max-width: 1120px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: auto 320px;
+  gap: 18px;
+  align-items: start;
+}
+
+/* ── Left column ─────────────────────────────── */
+.chess-main {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+/* ── Player card with timer ──────────────────── */
+.cb-player-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 14px;
+  background: rgba(10, 18, 34, 0.82);
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18);
+  transition: border-color 0.2s;
+}
+
+.cb-player-row.active {
+  border-color: rgba(59, 130, 246, 0.4);
+  box-shadow: 0 6px 18px rgba(0,0,0,.18), 0 0 0 1px rgba(59,130,246,.14);
+}
+
+.cb-player-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 14px;
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.cb-player-avatar.white { background: linear-gradient(135deg, #2563eb, #1d4ed8); }
+.cb-player-avatar.black { background: linear-gradient(135deg, #334155, #1e293b); }
+
+.cb-player-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.cb-player-name {
+  margin: 0 0 3px;
+  font-size: 15px;
+  font-weight: 700;
+  color: #f8fafc;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cb-player-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.cb-elo-badge {
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  background: rgba(148,163,184,.16);
+  color: #cbd5e1;
+  border: 1px solid rgba(148,163,184,.28);
+}
+
+.cb-color-label {
+  font-size: 11px;
+  color: #64748b;
+  font-weight: 600;
+}
+
+/* Timer */
+.cb-timer {
+  flex-shrink: 0;
+  min-width: 76px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: rgba(15, 23, 42, 0.9);
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: #e2e8f0;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  transition: background 0.2s, border-color 0.2s, color 0.2s;
+}
+
+.cb-timer.active {
+  background: rgba(59, 130, 246, 0.12);
+  border-color: rgba(59, 130, 246, 0.35);
+  color: #93c5fd;
+}
+
+.cb-timer.low {
+  border-color: rgba(234, 179, 8, 0.4);
+  color: #fde047;
+}
+
+.cb-timer.critical {
+  border-color: rgba(239, 68, 68, 0.5);
+  color: #f87171;
+  animation: timerCritical 0.9s ease-in-out infinite;
+}
+
+@keyframes timerCritical {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.3); }
+  50%       { box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
+}
+
+/* ── GameStatus override ─────────────────────── */
+.chess-app .game-status-container {
+  min-height: unset;
+  margin: 0;
+  padding: 10px 14px;
+}
+.chess-app .game-status-content h3 { margin: 0; font-size: 20px; }
+.chess-app .game-status-content p  { display: none; }
+.chess-app .game-status-container.check,
+.chess-app .game-status-container.checkmate {
+  border-color: rgba(239, 68, 68, 0.48);
+  background: linear-gradient(180deg, rgba(69, 18, 30, 0.96) 0%, rgba(32, 12, 24, 0.98) 100%);
+  box-shadow:
+    0 10px 28px rgba(127, 29, 29, 0.28),
+    inset 0 0 0 1px rgba(248, 113, 113, 0.08);
+}
+.chess-app .game-status-container.check .game-status-content p,
+.chess-app .game-status-container.checkmate .game-status-content p {
+  display: block;
+  margin-top: 4px;
+  color: #fecaca;
+}
+
+/* ── Board ───────────────────────────────────── */
+.board-section {
+  display: flex;
+  justify-content: center;
+}
+
+.board-frame {
+  padding: 12px;
+  border-radius: 20px;
+  background: rgba(10, 18, 34, 0.72);
+  border: 1px solid rgba(185, 210, 236, 0.12);
+  box-shadow: 0 18px 40px rgba(0,0,0,.3), inset 0 0 0 1px rgba(255,255,255,.03);
+  backdrop-filter: blur(10px);
+}
+
+.board-grid {
+  display: grid;
+  grid-template-columns: repeat(8, 68px);
+  grid-template-rows: repeat(8, 68px);
+  border-radius: 10px;
+  overflow: hidden;
+  border: 2px solid rgba(180, 205, 235, 0.16);
+  box-shadow: 0 0 0 1px rgba(255,255,255,.04), 0 14px 28px rgba(0,0,0,.28);
+}
+
+.square {
+  width: 68px;
+  height: 68px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  user-select: none;
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(193, 214, 236, 0.07);
+  transition: filter 0.12s ease;
+}
+
+.square:hover { filter: brightness(1.07); }
+
+.light {
+  background: linear-gradient(145deg, rgba(130,148,172,.98), rgba(95,112,138,.98));
+}
+.dark {
+  background: linear-gradient(145deg, rgba(34,48,75,.98), rgba(18,28,47,.98));
+}
+
+.selected {
+  box-shadow: inset 0 0 0 3px rgba(201,225,255,.82), inset 0 0 18px rgba(255,255,255,.08);
+  z-index: 2;
+}
+
+.checked-king {
+  z-index: 3;
+  animation: cb-check-pulse 0.95s ease-in-out infinite;
+  box-shadow:
+    inset 0 0 0 4px rgba(248, 113, 113, 0.98),
+    inset 0 0 26px rgba(220, 38, 38, 0.52),
+    0 0 22px rgba(239, 68, 68, 0.42);
+}
+
+.checked-king::before {
+  content: "";
+  position: absolute;
+  inset: 7px;
+  border: 2px solid rgba(254, 202, 202, 0.86);
+  border-radius: 8px;
+  pointer-events: none;
+  z-index: 4;
+}
+
+@keyframes cb-check-pulse {
+  0%, 100% {
+    filter: brightness(1.08);
+  }
+  50% {
+    filter: brightness(1.28);
+  }
+}
+
+/* Valid move dots */
+.valid-move::after {
+  content: "";
+  position: absolute;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.28);
+  z-index: 4;
+  pointer-events: none;
+}
+
+.valid-capture::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 0;
+  background: transparent;
+  border: 4px solid rgba(0, 0, 0, 0.28);
+  z-index: 4;
+  pointer-events: none;
+}
+
+.rank-label {
+  position: absolute;
+  top: 4px; left: 6px;
+  font-size: 13px; font-weight: 800;
+  color: #92ad4b; opacity: 0.96;
+  pointer-events: none; user-select: none; z-index: 3;
+}
+
+.file-label {
+  position: absolute;
+  right: 6px; bottom: 4px;
+  font-size: 13px; font-weight: 800;
+  color: #92ad4b; opacity: 0.96;
+  pointer-events: none; user-select: none; z-index: 3;
+}
+
+/* Fix: piece image alt text flash */
+.piece-image {
+  width: 80%;
+  height: 80%;
+  object-fit: contain;
+  pointer-events: none;
+  user-select: none;
+  filter: drop-shadow(0 3px 5px rgba(0,0,0,.32));
+  color: transparent; /* hides alt text during load */
+  position: relative;
+  z-index: 3;
+}
+
+/* ── RIGHT SIDEBAR ───────────────────────────── */
+.chess-sidebar {
+  position: sticky;
+  top: 20px;
+  height: calc(100vh - 40px);
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+/* Tabs bar */
+.cb-tabs {
+  display: flex;
+  background: rgba(8, 15, 30, 0.95);
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-bottom: none;
+  border-radius: 14px 14px 0 0;
+  overflow: hidden;
+}
+
+.cb-tab-btn {
+  flex: 1;
+  padding: 10px 4px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: #475569;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+  white-space: nowrap;
+}
+
+.cb-tab-btn:hover { color: #94a3b8; background: rgba(255,255,255,.03); }
+
+.cb-tab-btn.active {
+  color: #93c5fd;
+  border-bottom-color: #3b82f6;
+  background: rgba(59, 130, 246, 0.08);
+}
+
+/* Tab content area */
+.cb-tab-content {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: rgba(10, 18, 34, 0.82);
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  border-radius: 0 0 14px 14px;
+  overflow: hidden;
+}
+
+/* ── MOVES TAB ───────────────────────────────── */
+.cb-moves-wrap {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.cb-move-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148,163,184,.22) transparent;
+}
+
+.cb-move-list::-webkit-scrollbar { width: 4px; }
+.cb-move-list::-webkit-scrollbar-thumb {
+  background: rgba(148,163,184,.22);
+  border-radius: 999px;
+}
+.cb-move-list::-webkit-scrollbar-track { background: transparent; }
+
+/* Table header */
+.cb-move-head {
+  display: grid;
+  grid-template-columns: 46px 1fr 1fr;
+  background: rgba(255,255,255,.04);
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  border-bottom: 1px solid rgba(148,163,184,.1);
+}
+
+.cb-move-row {
+  display: grid;
+  grid-template-columns: 46px 1fr 1fr;
+  border-bottom: 1px solid rgba(148,163,184,.07);
+  transition: background 0.1s;
+}
+
+.cb-move-row:hover { background: rgba(255,255,255,.03); }
+
+.cb-move-head span,
+.cb-move-row span { padding: 9px 10px; }
+
+.cb-move-row > span:first-child {
+  color: #475569;
+  font-size: 12px;
+}
+
+.cb-notation-btn {
+  border: none;
+  background: transparent;
+  color: #d1d5db;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+  text-align: left;
+  width: 100%;
+  transition: color 0.1s;
+}
+
+.cb-notation-btn:hover { color: #93c5fd; }
+
+.cb-notation-btn.active {
+  display: inline-block;
+  padding: 2px 7px;
+  border-radius: 5px;
+  background: rgba(59,130,246,.18);
+  color: #bfdbfe;
+}
+
+.cb-moves-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: #475569;
+  padding: 24px;
+  text-align: center;
+  font-size: 13px;
+}
+
+.cb-moves-empty-icon { font-size: 28px; }
+
+/* Replay controls */
+.cb-replay-controls {
+  flex-shrink: 0;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  padding: 10px;
+  border-top: 1px solid rgba(148,163,184,.1);
+  background: rgba(5,12,24,.6);
+}
+
+.cb-replay-btn {
+  height: 40px;
+  border: 1px solid rgba(148,163,184,.14);
+  border-radius: 10px;
+  background: rgba(255,255,255,.05);
+  color: #94a3b8;
+  font-size: 18px;
+  cursor: pointer;
+  transition: 0.15s;
+}
+
+.cb-replay-btn:hover:not(:disabled) {
+  background: rgba(255,255,255,.1);
+  color: #e2e8f0;
+  transform: translateY(-1px);
+}
+
+.cb-replay-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+/* ── CHAT TAB ────────────────────────────────── */
+.cb-chat-wrap {
+  height: 100%;
+  min-width: 0;
+  display: flex;
+  overflow: hidden;
+}
+
+.cb-chat-wrap .chat-ui {
+  width: 100%;
+  min-width: 0;
+  max-width: none;
+  height: 100%;
+  border-radius: 0;
+  border: none;
+}
+
+.cb-chat-wrap .chat-ui__header { padding: 10px 14px; min-height: 52px; }
+.cb-chat-wrap .chat-ui__avatar { width: 34px; height: 34px; font-size: 14px; }
+.cb-chat-wrap .chat-ui__title  { font-size: 14px; }
+.cb-chat-wrap .chat-ui__subtitle { display: none; }
+.cb-chat-wrap .chat-ui__messages { padding: 10px 12px; gap: 8px; }
+.cb-chat-wrap .chat-ui__message-bubble { max-width: 76%; padding: 7px 9px 6px; }
+.cb-chat-wrap .chat-ui__message-text   { font-size: 13px; }
+.cb-chat-wrap .chat-ui__footer         { padding: 8px; gap: 6px; align-items: center; }
+.cb-chat-wrap .chat-ui__input-wrapper  { min-width: 0; padding: 8px 10px; gap: 6px; }
+.cb-chat-wrap .chat-ui__textarea       { min-width: 0; }
+.cb-chat-wrap .chat-ui__send-button    { width: 52px; min-width: 52px; height: 38px; padding: 0; font-size: 13px; display: flex; align-items: center; justify-content: center; }
+.cb-chat-wrap .chat-ui__icon-button    { width: 32px; height: 32px; font-size: 17px; display: flex; align-items: center; justify-content: center; }
+
+/* ── INFO TAB ────────────────────────────────── */
+.cb-info-wrap {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148,163,184,.18) transparent;
+}
+
+.cb-info-section {
+  padding: 14px;
+  border-bottom: 1px solid rgba(148,163,184,.1);
+}
+
+.cb-info-section:last-child { border-bottom: none; }
+
+.cb-info-title {
+  margin: 0 0 10px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #475569;
+}
+
+/* Captured pieces — compact */
+.cb-captured-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+
+.cb-captured-label {
+  font-size: 11px;
+  color: #64748b;
+  font-weight: 700;
+  min-width: 42px;
+  flex-shrink: 0;
+}
+
+.cb-captured-pieces {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+}
+
+.cb-captured-piece-img {
+  width: 18px;
+  height: 18px;
+  object-fit: contain;
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,.3));
+  color: transparent;
+}
+
+.cb-captured-empty {
+  font-size: 11px;
+  color: #334155;
+}
+
+/* Material advantage */
+.cb-advantage {
+  font-size: 11px;
+  color: #fde047;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 5px;
+  background: rgba(234,179,8,.12);
+  margin-left: 4px;
+}
+
+/* Room info */
+.cb-room-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 5px 0;
+  font-size: 13px;
+  color: #64748b;
+  border-bottom: 1px solid rgba(148,163,184,.07);
+}
+
+.cb-room-row:last-child { border-bottom: none; }
+.cb-room-row strong { color: #cbd5e1; font-weight: 600; }
+
+/* ── PERSISTENT RESIGN/DRAW PANEL ───────────────── */
+.cb-game-actions-panel {
+  flex-shrink: 0;
+  display: flex;
+  gap: 8px;
+  padding: 10px 12px;
+  background: rgba(5, 12, 24, 0.85);
+  border-top: 1px solid rgba(148, 163, 184, 0.1);
+}
+
+.cb-action-btn {
+  flex: 1;
+  padding: 10px 8px;
+  border-radius: 10px;
+  border: 1px solid rgba(148,163,184,.14);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: 0.15s;
+}
+
+.cb-action-btn.resign {
+  background: rgba(239,68,68,.1);
+  color: #fca5a5;
+  border-color: rgba(239,68,68,.22);
+}
+
+.cb-action-btn.resign:hover {
+  background: rgba(239,68,68,.18);
+  border-color: rgba(239,68,68,.4);
+}
+
+.cb-action-btn.draw {
+  background: rgba(168,85,247,.1);
+  color: #c084fc;
+  border-color: rgba(168,85,247,.22);
+}
+
+.cb-action-btn.draw:hover {
+  background: rgba(168,85,247,.18);
+  border-color: rgba(168,85,247,.4);
+}
+
+/* Pawn promotion */
+.cb-promotion-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(2, 6, 23, 0.68);
+  backdrop-filter: blur(6px);
+}
+
+.cb-promotion-panel {
+  width: min(420px, 100%);
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 16px;
+  padding: 20px;
+  background:
+    linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(5, 12, 24, 0.98));
+  box-shadow: 0 22px 70px rgba(0, 0, 0, 0.5);
+}
+
+.cb-promotion-kicker {
+  margin: 0 0 6px;
+  color: #7dd3fc;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.cb-promotion-panel h2 {
+  margin: 0 0 16px;
+  color: #f8fafc;
+  font-size: 22px;
+  line-height: 1.2;
+}
+
+.cb-promotion-options {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+
+.cb-promotion-option {
+  min-width: 0;
+  min-height: 98px;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: 12px;
+  background: rgba(15, 23, 42, 0.78);
+  color: #e2e8f0;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: 0.16s ease;
+}
+
+.cb-promotion-option:hover {
+  transform: translateY(-2px);
+  border-color: rgba(125, 211, 252, 0.42);
+  background: rgba(14, 165, 233, 0.12);
+}
+
+.cb-promotion-option img {
+  width: 46px;
+  height: 46px;
+  object-fit: contain;
+  filter: drop-shadow(0 3px 5px rgba(0,0,0,.32));
+}
+
+.cb-promotion-option span {
+  font-size: 12px;
+  font-weight: 800;
+}
+
+/* ── RESPONSIVE ──────────────────────────────── */
+@media (max-width: 900px) {
+  .chess-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .chess-sidebar {
+    position: static;
+    height: 520px;
+  }
+
+  .board-grid {
+    grid-template-columns: repeat(8, 54px);
+    grid-template-rows: repeat(8, 54px);
+  }
+
+  .square { width: 54px; height: 54px; }
+
+  .rank-label, .file-label { font-size: 10px; }
+
+  .cb-timer { font-size: 16px; min-width: 64px; }
+}
+
+@media (max-width: 600px) {
+  .chess-app { padding: 10px; }
+
+  .board-grid {
+    grid-template-columns: repeat(8, 42px);
+    grid-template-rows: repeat(8, 42px);
+  }
+
+  .square { width: 42px; height: 42px; }
+  .rank-label, .file-label { font-size: 9px; }
+
+  .cb-promotion-options {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}

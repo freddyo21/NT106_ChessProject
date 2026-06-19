@@ -12,9 +12,9 @@ export class Exception extends Error {
     protected _details: any;
     protected readonly isOperational: boolean;
 
-    constructor(message: string, statusCode = 500, name = "Exception", details: any = null) {
+    constructor(message: string, statusCode = 500, details: any = null) {
         super(message);
-        this.name = name;
+        this.name = "Exception";
         this.statusCode = statusCode;
         this._details = details;
         this.isOperational = true;

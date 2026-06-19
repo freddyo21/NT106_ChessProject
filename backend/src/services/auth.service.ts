@@ -1,14 +1,27 @@
+import { LoginRequestDTO, LoginRequestSchema, RegisterRequestDTO, RegisterRequestSchema, UserResponseSchema, UserSchema } from "@zess-online-chess/shared";
+import { randomBytes } from "node:crypto";
+import { ZodError } from "zod";
+import { InvalidCredentialException } from "../exceptions";
+import { deleteExpiredAuthTokens, storeAuthToken } from "../repositories/auth-token.repository";
 import { Exception, InvalidCredentialException } from "../exceptions";
 import * as userRepository from "../repositories/user.repository";
-import { generateToken, generateRefreshToken, verifyRefreshToken, revokeRefreshToken } from "../utils/jwt-handler";
-import { LoginRequestDTO, LoginRequestSchema, RegisterRequestDTO, RegisterRequestSchema, UserResponseSchema, UserSchema } from "@zess-online-chess/shared";
 import { comparePassword, hashPassword } from "../utils/hash";
+import { generateRefreshToken, generateToken, revokeRefreshToken, verifyRefreshToken } from "../utils/jwt-handler";
 import { ZodError } from "zod";
 import crypto from "crypto";
 import ms from "ms";
 
 const ACCESS_TOKEN_EXPIRY = "15m";
 const REFRESH_TOKEN_EXPIRY = "7d";
+const RESET_TOKEN_EXPIRY_MS = 15 * 60 * 1000;
+const SALT_ROUNDS = 13;
+
+const toSafeUser = (user: ReturnType<typeof UserSchema.parse>) => {
+    const userWithoutHash = { ...user };
+    delete (userWithoutHash as Partial<typeof userWithoutHash>).passwordHash;
+
+    return UserResponseSchema.parse(userWithoutHash);
+};
 
 /* This is the place where authentication logic is handled */
 export const login = async (data: LoginRequestDTO) => {
@@ -30,8 +43,7 @@ export const login = async (data: LoginRequestDTO) => {
         const accessToken = generateToken(parsedUser, ACCESS_TOKEN_EXPIRY);
         const refreshToken = await generateRefreshToken(parsedUser.id, rememberMe ? "30d" : REFRESH_TOKEN_EXPIRY);
 
-        const { passwordHash, ...userWithoutHash } = parsedUser;
-        const safeUser = UserResponseSchema.parse(userWithoutHash);
+        const safeUser = toSafeUser(parsedUser);
 
         return { user: safeUser, accessToken, refreshToken };
     } catch (error) {
@@ -67,13 +79,11 @@ export const refreshTokens = async (refreshToken: string) => {
     // Optionally revoke the old refresh token (Refresh Token Rotation)
     await revokeRefreshToken(refreshToken);
 
-    const { passwordHash, ...userWithoutHash } = parsedUser;
-    const safeUser = UserResponseSchema.parse(userWithoutHash);
+    const safeUser = toSafeUser(parsedUser);
 
     return { user: safeUser, accessToken: newAccessToken, refreshToken: newRefreshToken };
 };
 
-const SALT_ROUNDS = 13; // Vừa đủ để đảm bảo an toàn mà không quá chậm cho trải nghiệm người dùng. Có thể điều chỉnh nếu cần thiết.
 export const register = async (data: RegisterRequestDTO) => {
     const parsedData = await RegisterRequestSchema.parseAsync(data);
     const { name, username, email, password, confirmPassword } = parsedData;
@@ -111,9 +121,7 @@ export const register = async (data: RegisterRequestDTO) => {
 };
 
 export const logout = async (refreshToken: string) => {
-    revokeRefreshToken(refreshToken);
-
-    // Khi logout, cần đẩy refreshToken và accessToken vào Redis để blacklist cho tới khi hết hạn
+    await revokeRefreshToken(refreshToken);
 };
 
 // Store for password reset tokens (should use Redis in production)
@@ -125,17 +133,12 @@ const generateResetToken = (): string => {
     return crypto.randomBytes(32).toString("hex");
 };
 
-const cleanupExpiredResetTokens = () => {
-    const now = Date.now();
-    for (const [token, record] of resetTokenStore.entries()) {
-        if (record.expiresAt <= now) {
-            resetTokenStore.delete(token);
-        }
-    }
+const cleanupExpiredResetTokens = async () => {
+    await deleteExpiredAuthTokens("password_reset");
 };
 
 export const forgotPassword = async (email: string) => {
-    cleanupExpiredResetTokens();
+    await cleanupExpiredResetTokens();
     const normalizedEmail = email.trim().toLowerCase();
     const user = await userRepository.findByEmail(normalizedEmail);
 
@@ -143,60 +146,14 @@ export const forgotPassword = async (email: string) => {
         const resetToken = generateResetToken();
         const expiresAtMs = Date.now() + RESET_TOKEN_EXPIRY * 60 * 1000;
 
-        resetTokenStore.set(resetToken, {
-            userId: user.id,
-            expiresAt: expiresAtMs,
-        });
+        await storeAuthToken(resetToken, user.id, "password_reset", expiresAtMs);
 
         // TODO: Send reset token via email
-        // Example: await mailerService.sendPasswordResetEmail(user.email, resetToken);
         console.log(`Reset token for ${email}: ${resetToken}`);
     }
 
-    // Return generic message to avoid email enumeration
     return { message: "If an account with that email exists, a password reset link has been sent." };
 };
-
-// export const resetPassword = async (
-//     token: string,
-//     newPassword: string,
-//     confirmPassword: string
-// ) => {
-//     if (newPassword !== confirmPassword) {
-//         throw new InvalidCredentialException("Passwords do not match");
-//     }
-
-//     if (!newPassword || newPassword.length < 8) {
-//         throw new InvalidCredentialException("Password must be at least 8 characters long");
-//     }
-
-//     cleanupExpiredResetTokens();
-
-//     const resetRecord = resetTokenStore.get(token);
-//     if (!resetRecord) {
-//         throw new InvalidCredentialException("Invalid or expired reset token");
-//     }
-
-//     if (resetRecord.expiresAt <= Date.now()) {
-//         resetTokenStore.delete(token);
-//         throw new InvalidCredentialException("Reset token has expired");
-//     }
-
-//     const user = await userRepository.findById(resetRecord.userId);
-//     if (!user) {
-//         throw new InvalidCredentialException("User not found");
-//     }
-
-//     const hashedPassword = await hashPassword(newPassword, SALT_ROUNDS);
-//     await userRepository.update(user.id, { passwordHash: hashedPassword });
-
-//     // Invalidate all refresh tokens to force re-login
-//     // TODO: Implement refresh token revocation for this user
-
-//     resetTokenStore.delete(token);
-
-//     return { message: "Password reset successfully. Please log in with your new password." };
-// };
 
 export const changePassword = async (
     userId: string,
@@ -228,9 +185,6 @@ export const changePassword = async (
 
     const hashedPassword = await hashPassword(newPassword, SALT_ROUNDS);
     await userRepository.update(user.id, { passwordHash: hashedPassword });
-
-    // Optionally invalidate all refresh tokens to force re-login on all devices
-    // TODO: Implement refresh token revocation for this user
 
     return { message: "Password changed successfully." };
 };

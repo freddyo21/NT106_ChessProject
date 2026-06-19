@@ -52,16 +52,6 @@ const refreshTokenStore = new Map<string, RefreshTokenRecord>();
 //     return key;
 // };
 
-// Cần bỏ sau khi đã có Redis để blacklist refresh token
-const cleanupExpiredRefreshTokens = () => {
-    const now = Date.now();
-    for (const [token, record] of refreshTokenStore.entries()) {
-        if (record.expiresAt <= now) {
-            refreshTokenStore.delete(token);
-        }
-    }
-};
-
 const generateRefreshTokenString = (): string => {
     return crypto.randomBytes(32).toString("hex");
 };
@@ -93,39 +83,23 @@ const generateRefreshTokenString = (): string => {
     return crypto.randomBytes(32).toString("hex");
 };
 
-export const generateRefreshToken = (userId: string, expiresIn: ms.StringValue = "7d") => {
-    cleanupExpiredRefreshTokens();
-
+export const generateRefreshToken = async (userId: string, expiresIn: ms.StringValue = "7d") => {
+    await deleteExpiredAuthTokens("refresh");
     const refreshTokenString = generateRefreshTokenString();
     const expiresAtMs = Date.now() + ms(expiresIn);
 
-    refreshTokenStore.set(refreshTokenString, {
-        userId,
-        expiresAt: expiresAtMs,
-    });
+    await storeAuthToken(refreshTokenString, userId, "refresh", expiresAtMs);
 
     return refreshTokenString;
 };
 
-export const verifyRefreshToken = (refreshToken: string): { userId: string } | null => {
-    cleanupExpiredRefreshTokens();
-
-    const record = refreshTokenStore.get(refreshToken);
-
-    if (!record) {
-        return null;
-    }
-
-    if (record.expiresAt <= Date.now()) {
-        refreshTokenStore.delete(refreshToken);
-        return null;
-    }
-
-    return { userId: record.userId };
+export const verifyRefreshToken = async (refreshToken: string): Promise<{ userId: string } | null> => {
+    await deleteExpiredAuthTokens("refresh");
+    return findValidAuthToken(refreshToken, "refresh");
 };
 
-export const revokeRefreshToken = (refreshToken: string) => {
-    refreshTokenStore.delete(refreshToken);
+export const revokeRefreshToken = async (refreshToken: string) => {
+    await revokeAuthToken(refreshToken, "refresh");
 };
 
 export const validateToken = (token: string) => {
@@ -161,15 +135,13 @@ export const validateToken = (token: string) => {
         }
 
         logger.error(`[JWT_FAILED] ${reason}: ${ex.message || message}`, {
-            // Log 10 ký tự đầu/cuối là đủ trace
+            // Log only a short token snippet for traceability.
             tokenSnippet: `${token.substring(0, 10)}...${token.slice(-10)}`,
             originalError: ex.name,
-            // stack: reason === "Unknown JWT error" && ex.stack ? ex.stack : undefined
             stack: ex.stack
         });
 
-        // Convert all JWT-related errors to JwtInvalidException
-        // This error will be caught by the Global Error Handler and returned as 401
+        // Convert all JWT-related errors to JwtInvalidException.
         throw new JwtInvalidException(`Token validation failed: ${message}`, 401, { reason });
     }
 };

@@ -9,7 +9,7 @@ import type {
 } from "../types/GameRepository";
     //---------Column alias helper--------------
 
-    const GAME_SELECT_COLUMNS = `
+const GAME_SELECT_COLUMNS = `
         id,
         white_player_id         AS "whitePlayerId",
         black_player_id         AS "blackPlayerId",
@@ -40,7 +40,7 @@ import type {
         updated_at              AS "updatedAt"
     `;
 
-    const RATING_SELECT_COLUMNS = `
+const RATING_SELECT_COLUMNS = `
         user_id         AS "userId",
         rating,
         wins,
@@ -51,26 +51,26 @@ import type {
         updated_at      AS "updatedAt"
     `;
 
-    //------Games------
+//------Games------
 
-    export const createGame = async (data: CreateGameData): Promise<GameRow> => {
-        const {
-            whitePlayerId,
-            blackPlayerId,
-            createdBy,
-            roomCode,
-            isPrivate = false,
-            gameMode = "pvp",
-            aiLevel,
-            timeControlType,
-            initialTimeSeconds,
-            incrementSeconds,
-            whiteRatingSnapshot,
-            blackRatingSnapshot,
-        } = data;
+export const createGame = async (data: CreateGameData): Promise<GameRow> => {
+    const {
+        whitePlayerId,
+        blackPlayerId,
+        createdBy,
+        roomCode,
+        isPrivate = false,
+        gameMode = "pvp",
+        aiLevel,
+        timeControlType,
+        initialTimeSeconds,
+        incrementSeconds,
+        whiteRatingSnapshot,
+        blackRatingSnapshot,
+    } = data;
 
-        const result = await pool.query<GameRow>(
-            `
+    const result = await pool.query<GameRow>(
+        `
             INSERT INTO games (
                 white_player_id, black_player_id, created_by, room_code,
                 is_private, game_mode, ai_level,
@@ -88,49 +88,49 @@ import type {
             )
             RETURNING ${GAME_SELECT_COLUMNS}
             `,
-            [
+        [
             whitePlayerId, blackPlayerId, createdBy, roomCode,
             isPrivate, gameMode, aiLevel ?? null,
             timeControlType, initialTimeSeconds, incrementSeconds,
             initialTimeSeconds, initialTimeSeconds,
             whiteRatingSnapshot ?? null, blackRatingSnapshot ?? null,
-            ]
-        );
+        ]
+    );
 
-        if (!result.rows[0]) throw new Error("Failed to create game");
-        return result.rows[0];
-    };
+    if (!result.rows[0]) throw new Error("Failed to create game");
+    return result.rows[0];
+};
 
-    export const findGameById = async (gameId: string): Promise<GameRow | null> => {
-        const result = await pool.query<GameRow>(
-            `SELECT ${GAME_SELECT_COLUMNS} FROM games WHERE id = $1`,
-            [gameId]
-        );
-        return result.rows[0] ?? null;
-    };
+export const findGameById = async (gameId: string): Promise<GameRow | null> => {
+    const result = await pool.query<GameRow>(
+        `SELECT ${GAME_SELECT_COLUMNS} FROM games WHERE id = $1`,
+        [gameId]
+    );
+    return result.rows[0] ?? null;
+};
 
-    export const findGameByRoomCode = async (roomCode: string): Promise<GameRow | null> => {
-        const result = await pool.query<GameRow>(
-            `SELECT ${GAME_SELECT_COLUMNS} FROM games WHERE room_code = $1`,
-            [roomCode]
-        );
-        return result.rows[0] ?? null;
-    };
+export const findGameByRoomCode = async (roomCode: string): Promise<GameRow | null> => {
+    const result = await pool.query<GameRow>(
+        `SELECT ${GAME_SELECT_COLUMNS} FROM games WHERE room_code = $1`,
+        [roomCode]
+    );
+    return result.rows[0] ?? null;
+};
 
-    export const finishGame = async (data: FinishGameData): Promise<GameRow | null> => {
-        const {
-            gameId,
-            result,
-            terminationReason,
-            winnerId,
-            currentFen,
-            moveCount,
-            whiteTimeLeft,
-            blackTimeLeft,
-        } = data;
+export const finishGame = async (data: FinishGameData): Promise<GameRow | null> => {
+    const {
+        gameId,
+        result,
+        terminationReason,
+        winnerId,
+        currentFen,
+        moveCount,
+        whiteTimeLeft,
+        blackTimeLeft,
+    } = data;
 
-        const queryResult = await pool.query<GameRow>(
-            `
+    const queryResult = await pool.query<GameRow>(
+        `
             UPDATE games SET
                 status              = 'finished',
                 result              = $2,
@@ -145,17 +145,17 @@ import type {
             WHERE id = $1
             RETURNING ${GAME_SELECT_COLUMNS}
             `,
-            [gameId, result, terminationReason, winnerId,
+        [gameId, result, terminationReason, winnerId,
             currentFen ?? null, moveCount ?? null,
             whiteTimeLeft ?? null, blackTimeLeft ?? null]
-        );
+    );
 
-        return queryResult.rows[0] ?? null;
-    };
+    return queryResult.rows[0] ?? null;
+};
 
-    export const abortGame = async (gameId: string): Promise<GameRow | null> => {
-        const result = await pool.query<GameRow>(
-            `
+export const abortGame = async (gameId: string): Promise<GameRow | null> => {
+    const result = await pool.query<GameRow>(
+        `
             UPDATE games SET
                 status      = 'aborted',
                 termination_reason = 'aborted',
@@ -164,18 +164,18 @@ import type {
             WHERE id = $1
             RETURNING ${GAME_SELECT_COLUMNS}
             `,
-            [gameId]
-        );
-        return result.rows[0] ?? null;
-    };
+        [gameId]
+    );
+    return result.rows[0] ?? null;
+};
 
-    export const updateTimeLeft = async (
-        gameId: string,
-        whiteTimeLeft: number,
-        blackTimeLeft: number
-    ): Promise<void> => {
-        await pool.query(
-            `
+export const updateTimeLeft = async (
+    gameId: string,
+    whiteTimeLeft: number,
+    blackTimeLeft: number
+): Promise<void> => {
+    await pool.query(
+        `
             UPDATE games SET
                 white_time_left = $2,
                 black_time_left = $3,
@@ -183,19 +183,19 @@ import type {
                 updated_at      = now()
             WHERE id = $1
             `,
-            [gameId, whiteTimeLeft, blackTimeLeft]
-        );
-    };
+        [gameId, whiteTimeLeft, blackTimeLeft]
+    );
+};
 
-    export const updateCurrentFen = async (
-        gameId: string,
-        fen: string,
-        currentTurn: "white" | "black",
-        moveCount: number,
-        halfmoveClock: number
-    ): Promise<void> => {
-        await pool.query(
-            `
+export const updateCurrentFen = async (
+    gameId: string,
+    fen: string,
+    currentTurn: "white" | "black",
+    moveCount: number,
+    halfmoveClock: number
+): Promise<void> => {
+    await pool.query(
+        `
             UPDATE games SET
                 current_fen     = $2,
                 current_turn    = $3,
@@ -205,21 +205,21 @@ import type {
                 updated_at      = now()
             WHERE id = $1
             `,
-            [gameId, fen, currentTurn, moveCount, halfmoveClock]
-        );
-    };
+        [gameId, fen, currentTurn, moveCount, halfmoveClock]
+    );
+};
 
-    //-------Game Moves-----
-    export const recordMove = async (data: RecordMoveData): Promise<void> => {
-        const {
-            gameId, playerId, playerUsername, moveNumber, turnSide,
-            fromPos, toPos, pieceType, capturedPieceType, promotionPiece,
-            sanNotation, uciNotation, fenBefore, fenAfter,
-            isCheck = false, isCheckmate = false, isCastling = false, isPromotion = false,
-            whiteTimeLeft, blackTimeLeft, timeSpentSeconds,
-        } = data;
+//-------Game Moves-----
+export const recordMove = async (data: RecordMoveData): Promise<void> => {
+    const {
+        gameId, playerId, playerUsername, moveNumber, turnSide,
+        fromPos, toPos, pieceType, capturedPieceType, promotionPiece,
+        sanNotation, uciNotation, fenBefore, fenAfter,
+        isCheck = false, isCheckmate = false, isCastling = false, isPromotion = false,
+        whiteTimeLeft, blackTimeLeft, timeSpentSeconds,
+    } = data;
 
-        await pool.query(
+    await pool.query(
         `
             INSERT INTO game_moves (
                 game_id, player_id, player_username, move_number, turn_side,
@@ -235,19 +235,19 @@ import type {
                 $19, $20, $21
             )
             `,
-            [
-                gameId, playerId, playerUsername, moveNumber, turnSide,
-                fromPos, toPos, pieceType, capturedPieceType ?? null, promotionPiece ?? null,
-                sanNotation, uciNotation ?? null, fenBefore, fenAfter,
-                isCheck, isCheckmate, isCastling, isPromotion,
-                whiteTimeLeft, blackTimeLeft, timeSpentSeconds,
-            ]
-        );
-    };
+        [
+            gameId, playerId, playerUsername, moveNumber, turnSide,
+            fromPos, toPos, pieceType, capturedPieceType ?? null, promotionPiece ?? null,
+            sanNotation, uciNotation ?? null, fenBefore, fenAfter,
+            isCheck, isCheckmate, isCastling, isPromotion,
+            whiteTimeLeft, blackTimeLeft, timeSpentSeconds,
+        ]
+    );
+};
 
-    export const getGameMoves = async (gameId: string) => {
-        const result = await pool.query(
-            `
+export const getGameMoves = async (gameId: string) => {
+    const result = await pool.query(
+        `
             SELECT
                 id,
                 game_id             AS "gameId",
@@ -276,46 +276,47 @@ import type {
             WHERE game_id = $1
             ORDER BY move_number ASC
             `,
-            [gameId]
-        );
-        return result.rows;
-    };
+        [gameId]
+    );
+    return result.rows;
+};
 
-    //-----Player Ratings-----
+//-----Player Ratings-----
 
-    export const getRating = async (userId: string): Promise<PlayerRatingRow | null> => {
-        const result = await pool.query<PlayerRatingRow>(
-            `SELECT ${RATING_SELECT_COLUMNS} FROM player_ratings WHERE user_id = $1`,
-            [userId]
-        );
-        return result.rows[0] ?? null;
-    };
+export const getRating = async (userId: string): Promise<PlayerRatingRow | null> => {
+    const result = await pool.query<PlayerRatingRow>(
+        `SELECT ${RATING_SELECT_COLUMNS} FROM player_ratings WHERE user_id = $1`,
+        [userId]
+    );
+    return result.rows[0] ?? null;
+};
 
-    export const getRatingOrDefault = async (userId: string): Promise<PlayerRatingRow> => {
-        const existing = await getRating(userId);
-        if (existing) return existing;
-    
-        // Upsert nếu chưa có row (user mới chưa chơi ván nào)
-        const result = await pool.query<PlayerRatingRow>(
-            `
+export const getRatingOrDefault = async (userId: string): Promise<PlayerRatingRow> => {
+    const existing = await getRating(userId);
+    if (existing) return existing;
+
+    // Upsert nếu chưa có row (user mới chưa chơi ván nào)
+    const result = await pool.query<PlayerRatingRow>(
+        `
             INSERT INTO player_ratings (user_id)
             VALUES ($1)
             RETURNING ${RATING_SELECT_COLUMNS}
             `,
-            [userId]
-        );
-        if (!result.rows[0]) throw new Error("Failed to create player rating");
-        return result.rows[0];
-    };
+        [userId]
+    );
+    if (!result.rows[0]) throw new Error("Failed to create player rating");
+    return result.rows[0];
+};
 
 
-    export const updateRating = async (data: UpdateRatingData): Promise<PlayerRatingRow> => {
-        const { userId, newRating, result } = data;
-        await getRatingOrDefault(userId);
+export const updateRating = async (data: UpdateRatingData): Promise<PlayerRatingRow> => {
+    const { userId, newRating, result } = data;
+
+    await getRatingOrDefault(userId);
     
-        // Dùng CASE WHEN trong SQL thay vì string interpolation — clean hơn, không rủi ro
-        const queryResult = await pool.query<PlayerRatingRow>(
-            `
+    // Dùng CASE WHEN trong SQL thay vì string interpolation — clean hơn, không rủi ro
+    const queryResult = await pool.query<PlayerRatingRow>(
+        `
             UPDATE player_ratings SET
                 rating          = $2,
                 wins            = wins   + CASE WHEN $3 = 'win'  THEN 1 ELSE 0 END,
@@ -327,32 +328,32 @@ import type {
             WHERE user_id = $1
             RETURNING ${RATING_SELECT_COLUMNS}
             `,
-            [userId, newRating, result]
-        );
-        if (!queryResult.rows[0]) throw new Error("Failed to update rating");
-        return queryResult.rows[0];
-    };
+        [userId, newRating, result]
+    );
+    if (!queryResult.rows[0]) throw new Error("Failed to update rating");
+    return queryResult.rows[0];
+};
 
-    //------Rating History------
+//------Rating History------
 
-    export const insertRatingHistory = async (
-        userId: string,
-        gameId: string,
-        ratingBefore: number,
-        ratingAfter: number
-    ): Promise<void> => {
-        await pool.query(
-            `
+export const insertRatingHistory = async (
+    userId: string,
+    gameId: string,
+    ratingBefore: number,
+    ratingAfter: number
+): Promise<void> => {
+    await pool.query(
+        `
             INSERT INTO rating_history (user_id, game_id, rating_before, rating_after, rating_change)
             VALUES ($1, $2, $3, $4, $5)
             `,
-            [userId, gameId, ratingBefore, ratingAfter, ratingAfter - ratingBefore]
-        );
-    };
+        [userId, gameId, ratingBefore, ratingAfter, ratingAfter - ratingBefore]
+    );
+};
 
-    export const getRatingHistory = async (userId: string, limit = 20) => {
-        const result = await pool.query(
-            `
+export const getRatingHistory = async (userId: string, limit = 20) => {
+    const result = await pool.query(
+        `
             SELECT
                 id,
                 user_id         AS "userId",
@@ -366,8 +367,8 @@ import type {
             ORDER BY created_at DESC
             LIMIT $2
             `,
-            [userId, limit]
-        );
-        return result.rows;
-    };
-    
+        [userId, limit]
+    );
+    return result.rows;
+};
+

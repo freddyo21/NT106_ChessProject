@@ -1,16 +1,14 @@
 import { NextFunction, Request, Response } from "express";
 import { validateToken } from "../utils/jwt-handler";
-import { JwtPayload } from "jsonwebtoken";
 import { JwtInvalidException } from "../exceptions";
 import { getBearerToken } from "../auth/jwt-verify";
+import { ITokenPayload } from "@zess-online-chess/shared";
 
 type JwtRequest = Request & {
-    user?: (string | JwtPayload) & {
-        id?: string;
-    };
+    user?: ITokenPayload & { id: string };
 };
 
-export const authMiddleware = (req: JwtRequest, res: Response, next: NextFunction) => {
+export const authMiddleware = (req: JwtRequest, _res: Response, next: NextFunction) => {
     const token = getBearerToken(req);
 
     if (!token) {
@@ -31,7 +29,6 @@ export const authMiddleware = (req: JwtRequest, res: Response, next: NextFunctio
 
         return next();
     } catch (error) {
-        res.status(401).json({ error: "Invalid or expired token" });
         return next(error);
     }
 };

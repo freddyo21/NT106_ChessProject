@@ -17,3 +17,7 @@ export const pool = new Pool({
         ? { rejectUnauthorized: false }
         : false,
 });
+
+// const supabaseUrl = "https://djgqiiflytziciyfrcfw.supabase.co";
+// const supabaseKey = process.env.SUPABASE_KEY || "";
+// export const supabase = createClient(supabaseUrl, supabaseKey);

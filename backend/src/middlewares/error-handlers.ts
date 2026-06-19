@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from "express";
-import { Exception, NotFoundException } from "../exceptions";
+import { NotFoundException } from "../exceptions";
 import { Logger } from "../utils/Logger";
 import { IErrorResponse } from "@zess-online-chess/shared";
 import { flattenError, ZodError } from "zod";

@@ -14,6 +14,20 @@ import { connectRedis, disconnectRedis } from "./config/redis.config";
 
 let httpServer: HttpServer | null = null;
 
+function getServerPort(): number {
+    const portFlagIndex = process.argv.findIndex(arg => arg === "--port");
+    const cliPort =
+        portFlagIndex >= 0 ? Number(process.argv[portFlagIndex + 1]) : undefined;
+    const envPort = process.env.PORT ? Number(process.env.PORT) : undefined;
+    const port = cliPort || envPort || 3000;
+
+    if (!Number.isInteger(port) || port <= 0 || port > 65535) {
+        throw new Error(`Invalid port: ${process.argv[portFlagIndex + 1] ?? process.env.PORT}`);
+    }
+
+    return port;
+}
+
 async function initializeApp() {
     const app = express();
 
@@ -28,17 +42,7 @@ async function initializeApp() {
     httpServer = createServer(app);
     await socketInitialize(httpServer);
 
-    const portArgIndex = process.argv.indexOf("--port");
-    if (portArgIndex === -1 || portArgIndex === process.argv.length - 1) {
-        console.warn("No port specified, defaulting to 3000");
-    }
-
-    const portArg =
-        portArgIndex !== -1 && portArgIndex < process.argv.length - 1
-            ? process.argv[portArgIndex + 1]
-            : undefined;
-    const PORT = portArg ? parseInt(portArg, 10) : 3000;
-
+    const PORT = getServerPort();
     return new Promise<void>((resolve, reject) => {
         httpServer!.listen(PORT, () => {
             console.log(`Zess Chess System is running on port ${PORT}`);

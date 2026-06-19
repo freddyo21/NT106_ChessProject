@@ -1,5 +1,6 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { HttpClient } from "../services/HttpClient";
 import "./MatchHistoryPage.css";
 import "../Image/PNG_Chess/background.jpg";
 
@@ -16,7 +17,15 @@ type MatchHistoryItem = {
   durationSeconds: number;
 };
 
-const matchHistoryItems: MatchHistoryItem[] = [];
+type MatchHistoryApiItem = {
+  gameId: string;
+  endedAt: string | null;
+  startedAt: string | null;
+  opponentUsername: string | null;
+  result: MatchResult;
+  playerColor: MatchSide;
+  durationSeconds: number | null;
+};
 
 function getResultLabel(result: MatchResult) {
   switch (result) {
@@ -48,20 +57,64 @@ function formatDateTime(dateString: string) {
 }
 
 function formatDuration(totalSeconds: number) {
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
+  const safeSeconds = Math.max(totalSeconds, 0);
+  const minutes = Math.floor(safeSeconds / 60);
+  const seconds = safeSeconds % 60;
   return `${minutes}m ${seconds}s`;
 }
 
 function MatchHistoryPage() {
   const navigate = useNavigate();
+  const [matches, setMatches] = useState<MatchHistoryItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
   const [resultFilter, setResultFilter] = useState<MatchFilter>("all");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
-  const [appliedResultFilter, setAppliedResultFilter] =
-    useState<MatchFilter>("all");
+  const [appliedResultFilter, setAppliedResultFilter] = useState<MatchFilter>("all");
   const [appliedStartDate, setAppliedStartDate] = useState("");
   const [appliedEndDate, setAppliedEndDate] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadMatchHistory() {
+      setIsLoading(true);
+      setLoadError("");
+
+      try {
+        const response = await HttpClient.get<{ data: { items: MatchHistoryApiItem[] } }>(
+          "/match-history/me",
+          { params: { page: 1, pageSize: 100 } }
+        );
+
+        if (cancelled) return;
+
+        setMatches(response.data.data.items.map((item) => ({
+          id: item.gameId,
+          playedAt: item.endedAt ?? item.startedAt ?? new Date().toISOString(),
+          opponentName: item.opponentUsername ?? "Đối thủ",
+          result: item.result,
+          side: item.playerColor,
+          durationSeconds: Number(item.durationSeconds) || 0,
+        })));
+      } catch {
+        if (!cancelled) {
+          setLoadError("Không tải được lịch sử đấu.");
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoading(false);
+        }
+      }
+    }
+
+    loadMatchHistory();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const handleSearch = () => {
     setAppliedResultFilter(resultFilter);
@@ -70,29 +123,16 @@ function MatchHistoryPage() {
   };
 
   const filteredMatches = useMemo(() => {
-    return matchHistoryItems.filter((match) => {
+    return matches.filter((match) => {
       const matchDate = new Date(match.playedAt);
 
-      if (
-        appliedResultFilter !== "all" &&
-        match.result !== appliedResultFilter
-      ) {
-        return false;
-      }
-
-      if (appliedStartDate) {
-        const start = new Date(`${appliedStartDate}T00:00:00`);
-        if (matchDate < start) return false;
-      }
-
-      if (appliedEndDate) {
-        const end = new Date(`${appliedEndDate}T23:59:59`);
-        if (matchDate > end) return false;
-      }
+      if (appliedResultFilter !== "all" && match.result !== appliedResultFilter) return false;
+      if (appliedStartDate && matchDate < new Date(`${appliedStartDate}T00:00:00`)) return false;
+      if (appliedEndDate && matchDate > new Date(`${appliedEndDate}T23:59:59`)) return false;
 
       return true;
     });
-  }, [appliedEndDate, appliedResultFilter, appliedStartDate]);
+  }, [appliedEndDate, appliedResultFilter, appliedStartDate, matches]);
 
   const statistics = useMemo(() => {
     const total = filteredMatches.length;
@@ -104,15 +144,15 @@ function MatchHistoryPage() {
     return { total, wins, losses, draws, winRate };
   }, [filteredMatches]);
 
+  const emptyText = isLoading
+    ? "Đang tải lịch sử đấu..."
+    : loadError || "Chưa có lịch sử trận đấu.";
+
   return (
     <div className="match-history-page">
       <div className="match-history-shell">
         <div className="match-history-header">
-          <button
-            type="button"
-            className="match-history-back-button"
-            onClick={() => navigate("/lobby")}
-          >
+          <button type="button" className="match-history-back-button" onClick={() => navigate("/lobby")}>
             Quay về sảnh
           </button>
 
@@ -136,9 +176,7 @@ function MatchHistoryPage() {
               <select
                 className="match-history-input"
                 value={resultFilter}
-                onChange={(event) =>
-                  setResultFilter(event.target.value as MatchFilter)
-                }
+                onChange={(event) => setResultFilter(event.target.value as MatchFilter)}
               >
                 <option value="all">Tất cả</option>
                 <option value="win">Thắng</option>
@@ -149,28 +187,16 @@ function MatchHistoryPage() {
 
             <label className="field-label">
               Từ ngày
-              <input
-                className="match-history-input"
-                type="date"
-                value={startDate}
-                onChange={(event) => setStartDate(event.target.value)}
-              />
+              <input className="match-history-input" type="date" value={startDate} onChange={(event) => setStartDate(event.target.value)} />
             </label>
 
             <label className="field-label">
               Đến ngày
-              <input
-                className="match-history-input"
-                type="date"
-                value={endDate}
-                onChange={(event) => setEndDate(event.target.value)}
-              />
+              <input className="match-history-input" type="date" value={endDate} onChange={(event) => setEndDate(event.target.value)} />
             </label>
 
             <div className="match-history-search-wrap">
-              <button type="button" className="primary-btn" onClick={handleSearch}>
-                Tìm kiếm
-              </button>
+              <button type="button" className="primary-btn" onClick={handleSearch}>Tìm kiếm</button>
             </div>
           </div>
         </section>
@@ -182,22 +208,10 @@ function MatchHistoryPage() {
             </div>
 
             <div className="match-history-stats-list">
-              <div className="match-stat-card">
-                <span className="match-stat-label">Tổng trận</span>
-                <strong>{statistics.total}</strong>
-              </div>
-              <div className="match-stat-card">
-                <span className="match-stat-label">Thắng</span>
-                <strong className="stat-win">{statistics.wins}</strong>
-              </div>
-              <div className="match-stat-card">
-                <span className="match-stat-label">Hòa</span>
-                <strong className="stat-draw">{statistics.draws}</strong>
-              </div>
-              <div className="match-stat-card">
-                <span className="match-stat-label">Thua</span>
-                <strong className="stat-loss">{statistics.losses}</strong>
-              </div>
+              <div className="match-stat-card"><span className="match-stat-label">Tổng trận</span><strong>{statistics.total}</strong></div>
+              <div className="match-stat-card"><span className="match-stat-label">Thắng</span><strong className="stat-win">{statistics.wins}</strong></div>
+              <div className="match-stat-card"><span className="match-stat-label">Hòa</span><strong className="stat-draw">{statistics.draws}</strong></div>
+              <div className="match-stat-card"><span className="match-stat-label">Thua</span><strong className="stat-loss">{statistics.losses}</strong></div>
               <div className="match-stat-card match-stat-highlight">
                 <span className="match-stat-label">Tỷ lệ thắng</span>
                 <strong>{statistics.winRate.toFixed(1).replace(".", ",")}%</strong>
@@ -231,22 +245,14 @@ function MatchHistoryPage() {
                       <tr key={match.id}>
                         <td>{formatDateTime(match.playedAt)}</td>
                         <td>{match.opponentName}</td>
-                        <td>
-                          <span className={`match-result-badge ${match.result}`}>
-                            {getResultLabel(match.result)}
-                          </span>
-                        </td>
+                        <td><span className={`match-result-badge ${match.result}`}>{getResultLabel(match.result)}</span></td>
                         <td>{getSideLabel(match.side)}</td>
                         <td>{formatDuration(match.durationSeconds)}</td>
                       </tr>
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={5}>
-                        <div className="empty-state">
-                          Chưa có lịch sử trận đấu.
-                        </div>
-                      </td>
+                      <td colSpan={5}><div className="empty-state">{emptyText}</div></td>
                     </tr>
                   )}
                 </tbody>

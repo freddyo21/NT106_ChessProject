@@ -1,3 +1,4 @@
+import { InvalidCredentialException, ServiceUnavailableException } from "../exceptions";
 import { LoginRequestDTO, LoginRequestSchema, RegisterRequestDTO, RegisterRequestSchema, UserResponseSchema, UserSchema } from "@zess-online-chess/shared";
 import { randomBytes } from "node:crypto";
 import { ZodError } from "zod";
@@ -8,8 +9,6 @@ import * as userRepository from "../repositories/user.repository";
 import { comparePassword, hashPassword } from "../utils/hash";
 import { generateRefreshToken, generateToken, revokeRefreshToken, verifyRefreshToken } from "../utils/jwt-handler";
 import { ZodError } from "zod";
-import crypto from "crypto";
-import ms from "ms";
 
 const ACCESS_TOKEN_EXPIRY = "15m";
 const REFRESH_TOKEN_EXPIRY = "7d";
@@ -21,6 +20,41 @@ const toSafeUser = (user: ReturnType<typeof UserSchema.parse>) => {
     delete (userWithoutHash as Partial<typeof userWithoutHash>).passwordHash;
 
     return UserResponseSchema.parse(userWithoutHash);
+};
+
+const toSafeUser = (user: ReturnType<typeof UserSchema.parse>) => {
+    const userWithoutHash = { ...user };
+    delete (userWithoutHash as Partial<typeof user>).passwordHash;
+    return UserResponseSchema.parse(userWithoutHash);
+};
+
+const isDatabaseConnectionError = (error: unknown) => {
+    if (error instanceof AggregateError) {
+        return error.errors.some(isDatabaseConnectionError);
+    }
+
+    if (typeof error !== "object" || error === null) {
+        return false;
+    }
+
+    const code = "code" in error ? error.code : undefined;
+    return code === "ECONNREFUSED" || code === "ENOTFOUND" || code === "ETIMEDOUT";
+};
+
+const toAuthServiceError = (error: unknown) => {
+    if (
+        error instanceof InvalidCredentialException ||
+        error instanceof ServiceUnavailableException ||
+        error instanceof ZodError
+    ) {
+        return error;
+    }
+
+    if (isDatabaseConnectionError(error)) {
+        return new ServiceUnavailableException("Database is not available. Please start PostgreSQL and try again.");
+    }
+
+    return new Error("Authentication service failed");
 };
 
 /* This is the place where authentication logic is handled */
@@ -47,14 +81,7 @@ export const login = async (data: LoginRequestDTO) => {
 
         return { user: safeUser, accessToken, refreshToken };
     } catch (error) {
-        if (
-            error instanceof InvalidCredentialException ||
-            error instanceof ZodError
-        ) {
-            throw error;
-        }
-
-        throw new Exception("Authentication service failed");
+        throw toAuthServiceError(error);
     }
 };
 
@@ -85,39 +112,43 @@ export const refreshTokens = async (refreshToken: string) => {
 };
 
 export const register = async (data: RegisterRequestDTO) => {
-    const parsedData = await RegisterRequestSchema.parseAsync(data);
-    const { name, username, email, password, confirmPassword } = parsedData;
+    try {
+        const parsedData = await RegisterRequestSchema.parseAsync(data);
+        const { name, username, email, password, confirmPassword } = parsedData;
 
-    if (password !== confirmPassword) {
-        throw new InvalidCredentialException("Passwords do not match");
+        if (password !== confirmPassword) {
+            throw new InvalidCredentialException("Passwords do not match");
+        }
+
+        const normalizedEmail = email.trim().toLowerCase();
+
+        const existingUserByEmail = await userRepository.findByEmail(normalizedEmail);
+        const existingUserByUsername = await userRepository.findByUsername(username);
+
+        if (existingUserByEmail) {
+            throw new InvalidCredentialException("Email already exists");
+        }
+
+        if (existingUserByUsername) {
+            throw new InvalidCredentialException("Username already exists");
+        }
+
+        const hashedPassword = await hashPassword(password, SALT_ROUNDS);
+        const user = await userRepository.create({
+            name,
+            username,
+            email: normalizedEmail,
+            passwordHash: hashedPassword
+        });
+
+        const safeUser = UserResponseSchema.parse(user);
+
+        return {
+            user: safeUser
+        };
+    } catch (error) {
+        throw toAuthServiceError(error);
     }
-
-    const normalizedEmail = email.trim().toLowerCase();
-
-    const existingUserByEmail = await userRepository.findByEmail(normalizedEmail);
-    const existingUserByUsername = await userRepository.findByUsername(username);
-
-    if (existingUserByEmail) {
-        throw new InvalidCredentialException("Email already exists");
-    }
-
-    if (existingUserByUsername) {
-        throw new InvalidCredentialException("Username already exists");
-    }
-
-    const hashedPassword = await hashPassword(password, SALT_ROUNDS);
-    const user = await userRepository.create({
-        name,
-        username,
-        email: normalizedEmail,
-        passwordHash: hashedPassword
-    });
-
-    const safeUser = UserResponseSchema.parse(user);
-
-    return {
-        user: safeUser
-    };
 };
 
 export const logout = async (refreshToken: string) => {
@@ -127,10 +158,11 @@ export const logout = async (refreshToken: string) => {
 // Store for password reset tokens (should use Redis in production)
 const resetTokenStore = new Map<string, { userId: string; expiresAt: number }>();
 
-const RESET_TOKEN_EXPIRY = ms("15m"); // 15 minutes
-
 const generateResetToken = (): string => {
-    return crypto.randomBytes(32).toString("hex");
+    const randomBytes = crypto.getRandomValues(new Uint8Array(32));
+    return Array.from(randomBytes)
+        .map((byte) => byte.toString(16).padStart(2, "0"))
+        .join("");
 };
 
 const cleanupExpiredResetTokens = async () => {
@@ -144,7 +176,7 @@ export const forgotPassword = async (email: string) => {
 
     if (user) {
         const resetToken = generateResetToken();
-        const expiresAtMs = Date.now() + RESET_TOKEN_EXPIRY * 60 * 1000;
+        const expiresAtMs = Date.now() + 15 * 60 * 1000; // 15 minutes
 
         await storeAuthToken(resetToken, user.id, "password_reset", expiresAtMs);
 

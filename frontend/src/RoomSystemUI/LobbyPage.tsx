@@ -6,9 +6,11 @@ import ChatUI, { type ChatMessage } from "../ChatUI/ChatUI";
 import coverImage from "../Image/Cover2.jpg";
 import logoImage from "../Image/ZessOnlChessLogoDon.svg";
 import lobbyIcon from "../Image/LobbyIcon.svg";
+import { HttpClient } from "../services/HttpClient";
 import {
   disconnectAppSocket,
   getAppSocket,
+  type AiDifficulty,
   type LobbyMessagePayload,
   type PresenceUser,
 } from "../services/socketClient";
@@ -32,14 +34,36 @@ function createLobbyMessageId() {
   return `lobby-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
-function mapPresenceToOnlinePlayer(user: PresenceUser): OnlinePlayer {
+const AI_DIFFICULTY_OPTIONS: Array<{ value: AiDifficulty; label: string }> = [
+  { value: "easy", label: "D\u1ec5" },
+  { value: "medium", label: "Trung b\u00ecnh" },
+  { value: "hard", label: "Kh\u00f3" },
+];
+
+type LeaderboardApiEntry = {
+  userId: string;
+  rating: number | string;
+};
+
+async function fetchLobbyEloByUserId() {
+  const response = await HttpClient.get<{ data: { entries: LeaderboardApiEntry[] } }>(
+    "/leaderboard",
+    { params: { page: 1, pageSize: 100, minGamesPlayed: 0 } }
+  );
+
+  return new Map(
+    response.data.data.entries.map((entry) => [entry.userId, Number(entry.rating) || DEFAULT_ELO])
+  );
+}
+
+function mapPresenceToOnlinePlayer(user: PresenceUser, currentUserId?: string, currentElo?: number): OnlinePlayer {
   // Presence comes from authenticated sockets, so no mock online list is kept on the client.
   return {
     id: user.userId,
     displayName: user.displayName || user.username,
-    elo: user.elo,
+    elo: user.userId === currentUserId ? currentElo ?? user.elo : user.elo,
     status: user.status,
-    subtitle: "Đang ở sảnh chính",
+    subtitle: "\u0110ang \u1edf s\u1ea3nh ch\u00ednh",
   };
 }
 
@@ -47,6 +71,7 @@ function LobbyPage() {
   const navigate = useNavigate();
   const [onlinePlayers, setOnlinePlayers] = useState<OnlinePlayer[]>([]);
   const [lobbyMessages, setLobbyMessages] = useState<ChatMessage[]>([]);
+  const [aiDifficulty, setAiDifficulty] = useState<AiDifficulty>("medium");
 
   const currentUser = useMemo(() => getCurrentUser(), []);
   const currentElo = currentUser?.elo ?? DEFAULT_ELO;
@@ -60,18 +85,37 @@ function LobbyPage() {
 
   useEffect(() => {
     const socket = getAppSocket();
+    let cancelled = false;
 
     if (!socket || !currentUser) {
       return;
     }
 
+    const refreshOnlineRatings = () => {
+      void fetchLobbyEloByUserId()
+        .then((eloByUserId) => {
+          if (cancelled) return;
+
+          setOnlinePlayers((prevPlayers) =>
+            prevPlayers.map((player) => ({
+              ...player,
+              elo: player.id === currentUser.id
+                ? currentElo
+                : eloByUserId.get(player.id) ?? player.elo,
+            }))
+          );
+        })
+        .catch(() => undefined);
+    };
+
     const handlePresenceList = (users: PresenceUser[]) => {
-      setOnlinePlayers(users.map(mapPresenceToOnlinePlayer));
+      setOnlinePlayers(users.map((user) => mapPresenceToOnlinePlayer(user, currentUser.id, currentElo)));
+      refreshOnlineRatings();
     };
 
     const handleUserOnline = (user: PresenceUser) => {
       setOnlinePlayers((prevPlayers) => {
-        const nextPlayer = mapPresenceToOnlinePlayer(user);
+        const nextPlayer = mapPresenceToOnlinePlayer(user, currentUser.id, currentElo);
         const existingIndex = prevPlayers.findIndex((player) => player.id === nextPlayer.id);
 
         if (existingIndex >= 0) {
@@ -82,6 +126,7 @@ function LobbyPage() {
 
         return [...prevPlayers, nextPlayer];
       });
+      refreshOnlineRatings();
     };
 
     const handleUserOffline = ({ userId }: { userId: string }) => {
@@ -122,12 +167,13 @@ function LobbyPage() {
     socket.emit("presence:list", handlePresenceList);
 
     return () => {
+      cancelled = true;
       socket.off("presence:list", handlePresenceList);
       socket.off("presence:user_online", handleUserOnline);
       socket.off("presence:user_offline", handleUserOffline);
       socket.off("lobby:message", handleLobbyMessage);
     };
-  }, [currentUser]);
+  }, [currentElo, currentUser]);
 
   const handleOpenLeaderboard = () => navigate("/leaderboard");
   const handleOpenMatchHistory = () => navigate("/match-history");
@@ -142,6 +188,39 @@ function LobbyPage() {
         username: currentUser.username,
         elo: currentElo,
       },
+    });
+  };
+
+  const handlePlayAi = () => {
+    if (!currentUser) return;
+
+    const socket = getAppSocket();
+    if (!socket) {
+      return;
+    }
+
+    if (!socket.connected) {
+      socket.connect();
+    }
+
+    socket.emit("ai:start", { difficulty: aiDifficulty }, (response) => {
+      if (!response.ok || !response.roomId) {
+        alert("KhÃ´ng thá»ƒ báº¯t Ä‘áº§u vÃ¡n vá»›i AI.");
+        return;
+      }
+
+      navigate("/board", {
+        state: {
+          roomId: response.roomId,
+          gameId: response.roomId,
+          roomName: `Ch\u01a1i v\u1edbi AI - ${AI_DIFFICULTY_OPTIONS.find((option) => option.value === aiDifficulty)?.label ?? "Trung b\u00ecnh"}`,
+          roomCode: response.roomId,
+          playerColor: "white",
+          opponentName: "Zess AI",
+          opponentElo: DEFAULT_ELO,
+          playerElo: currentElo,
+        },
+      });
     });
   };
 
@@ -195,7 +274,7 @@ function LobbyPage() {
             type="button"
             className="lobby-logo-box"
             onClick={() => navigate("/lobby")}
-            aria-label="Quay về Lobby"
+            aria-label="Quay vá» Lobby"
           >
             <img src={logoImage} alt="Zess Online Chess Logo" />
           </button>
@@ -225,7 +304,7 @@ function LobbyPage() {
               type="button"
               className="lobby-user-link"
               onClick={handleOpenPlayerProfile}
-              title="Mở Profile"
+              title="Má»Ÿ Profile"
             >
               {currentUser.username} <span>|</span> Elo {currentElo}
             </button>
@@ -235,8 +314,8 @@ function LobbyPage() {
               target="_blank"
               rel="noreferrer"
               className="lobby-help-btn"
-              title="Hướng dẫn Cờ Vua - Wikipedia"
-              aria-label="Hướng dẫn Cờ Vua"
+              title="HÆ°á»›ng dáº«n Cá» Vua - Wikipedia"
+              aria-label="HÆ°á»›ng dáº«n Cá» Vua"
             >
               ?
             </a>
@@ -268,8 +347,29 @@ function LobbyPage() {
             className="lobby-main-btn primary"
             onClick={handleQuickPlay}
           >
-            Chơi Ngay
+            Chơi ngay
           </button>
+          <div className="lobby-ai-action">
+            <div className="lobby-ai-difficulty" role="group" aria-label={"\u0110\u1ed9 kh\u00f3 AI"}>
+              {AI_DIFFICULTY_OPTIONS.map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  className={aiDifficulty === option.value ? "active" : ""}
+                  onClick={() => setAiDifficulty(option.value)}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          <button
+            type="button"
+            className="lobby-main-btn ai"
+            onClick={handlePlayAi}
+          >
+              Chơi với AI
+          </button>
+          </div>
           <button
             type="button"
             className="lobby-main-btn secondary"

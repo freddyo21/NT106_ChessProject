@@ -8,7 +8,7 @@ import { createAdapter } from "@socket.io/redis-adapter";
 import { createRedisPubSubClients } from "../config/redis.config";
 
 // Track disconnect timeouts to clean up on reconnect
-const disconnectTimeouts = new Map<string, NodeJS.Timeout>();
+const disconnectTimeouts = new Map<string, ReturnType<typeof setTimeout>>();
 
 const getAllowedOrigins = () => {
     const configuredOrigins = (

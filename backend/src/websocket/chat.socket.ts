@@ -66,7 +66,7 @@ export const chatSocket = async (socket: Socket) => {
                 return;
             }
 
-            socket.nsp.to(roomId).emit("chat", {
+            socket.nsp.to(LOBBY_ROOM).emit("chat", {
                 id: `${Date.now()}-${socket.id}`,
                 userId: socket.data.user?.id,
                 username,

@@ -23,18 +23,16 @@ export const getKeys = () => {
         };
     }
 
-    // const { privateKey, publicKey } = generateKeyPairSync("ec", {
-    //     namedCurve: "prime256v1",
-    //     publicKeyEncoding: { type: "spki", format: "pem" },
-    //     privateKeyEncoding: { type: "pkcs8", format: "pem" },
-    // });
+    const { privateKey, publicKey } = generateKeyPairSync("ec", {
+        namedCurve: "prime256v1",
+        publicKeyEncoding: { type: "spki", format: "pem" },
+        privateKeyEncoding: { type: "pkcs8", format: "pem" },
+    });
 
-    // fs.writeFileSync(privateKeyPath, privateKey);
-    // fs.writeFileSync(publicKeyPath, publicKey);
+    fs.writeFileSync(privateKeyPath, privateKey);
+    fs.writeFileSync(publicKeyPath, publicKey);
 
-    // console.log("Initialized new ES256 key pair.");
+    console.log("Initialized new ES256 key pair.");
 
-    // return { privateKey, publicKey };
-    console.warn("ES256 keys not found. JWT functionality will be unavailable until keys are generated.");
-    process.exit(1);
+    return { privateKey, publicKey };
 };

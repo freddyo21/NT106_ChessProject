@@ -25,7 +25,7 @@
     "start:frontend": "npm --workspace=frontend run preview -- --host 127.0.0.1 --port 1420",
     "start:frontend:tauri": "npm --workspace=frontend run tauri preview -- --host 0.0.0.0 --port 5173",
     "start": "npm run build:shared && concurrently --names backend,frontend -c \"#f20,#0a0\" --prefix \"[{name}]\" \"npm run start:backend\" \"npm run start:frontend\"",
-    "lint": "npm --workspaces run lint",
+    "lint": "npm --workspaces --if-present run lint",
     "test": "npm --workspace=backend run test"
   },
   "dependencies": {

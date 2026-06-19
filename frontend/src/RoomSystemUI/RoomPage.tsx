@@ -4,11 +4,10 @@ import { DEFAULT_ELO, ERoles } from "@zess-online-chess/shared";
 import ChatUI, { type ChatMessage } from "../ChatUI/ChatUI";
 import logoImage from "../Image/ZessOnlChessLogoDon.svg";
 import { getCurrentUser, getUserDisplayName, type AuthSessionUser } from "../services/authSession";
+import { getAppSocket, type SocketGameStartedPayload, type SocketRoomPlayer } from "../services/socketClient";
 import "./RoomPage.css";
 
-// Types
-
-type PlayerColor = "white" | "black";
+// â”€â”€ Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 type PlayerSlot = {
   id: string;
@@ -18,7 +17,7 @@ type PlayerSlot = {
   isReady: boolean;
   online: boolean;
   rating: number;
-  color: PlayerColor | null;
+  color: "white" | "black" | null;
 };
 
 type RoomData = {
@@ -32,7 +31,7 @@ type RoomData = {
 
 type RoomSettings = {
   roomName: string;
-  hostColor: PlayerColor | "random";
+  hostColor: "white" | "black" | "random";
   timeControl: 1 | 3 | 5 | "custom";
   customMinutes: number;
   bonusSeconds: number;
@@ -48,7 +47,7 @@ type RoomRouteState = {
   hostElo?: number;
 };
 
-// Constants
+// â”€â”€ Constants â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const CURRENT_USER_ID  = "current-user";
 
@@ -58,18 +57,6 @@ const TIME_PRESETS: { label: string; value: 1 | 3 | 5 | "custom" }[] = [
   { label: "5 phút", value: 5 },
   { label: "Tùy chọn", value: "custom" },
 ];
-
-function getOppositeColor(color: PlayerColor): PlayerColor {
-  return color === "white" ? "black" : "white";
-}
-
-function resolveHostColor(hostColor: RoomSettings["hostColor"]): PlayerColor {
-  if (hostColor === "random") {
-    return Math.random() < 0.5 ? "white" : "black";
-  }
-
-  return hostColor;
-}
 
 const INITIAL_CHAT_MESSAGES: ChatMessage[] = [
   {
@@ -84,7 +71,7 @@ const INITIAL_CHAT_MESSAGES: ChatMessage[] = [
   },
 ];
 
-// Helpers
+// â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function getAuthenticatedUser(): AuthSessionUser {
   // Room waiting UI uses the authenticated session; this fallback only prevents a blank crash during redirect.
@@ -104,19 +91,20 @@ function buildInitialRoom(
   routeState: RoomRouteState | null,
   currentUser: AuthSessionUser
 ): RoomData {
-  // Build the initial waiting-room state from the navigation payload.
+  //{Sinh dá»¯ liá»‡u phĂ²ng ban Ä‘áº§u dá»±a trĂªn route state}
   const roomName = routeState?.roomName ?? "Phòng đấu nhanh";
   const roomCode = routeState?.roomCode ?? "AB12CD";
   const roomId   = routeState?.roomId   ?? "room-001";
   const username = currentUser.username  ?? "admin";
   const displayName = getUserDisplayName(currentUser);
+  const currentUserId = currentUser.id || CURRENT_USER_ID;
 
   if (!routeState || routeState.source === "create") {
     return {
       id: roomId, name: roomName, code: roomCode,
       status: "waiting", maxPlayers: 2,
       players: [{
-        id: CURRENT_USER_ID, username, displayName,
+        id: currentUserId, username, displayName,
         isHost: true, isReady: false, online: true,
         rating: currentUser.elo ?? DEFAULT_ELO, color: "white",
       }],
@@ -135,7 +123,7 @@ function buildInitialRoom(
         rating: routeState.hostElo ?? DEFAULT_ELO, color: "white",
       },
       {
-        id: CURRENT_USER_ID, username, displayName,
+        id: currentUserId, username, displayName,
         isHost: false, isReady: false, online: true,
         rating: currentUser.elo ?? DEFAULT_ELO, color: "black",
       },
@@ -143,13 +131,26 @@ function buildInitialRoom(
   };
 }
 
-// EloRank badge
+function mapSocketPlayers(players: SocketRoomPlayer[], currentUser: AuthSessionUser): PlayerSlot[] {
+  return players.map((player, index) => ({
+    id: player.userId,
+    username: player.username,
+    displayName: player.userId === currentUser.id ? getUserDisplayName(currentUser) : player.username,
+    isHost: player.isHost ?? index === 0,
+    isReady: player.isHost || index === 0 || Boolean(player.isReady),
+    online: true,
+    rating: player.elo ?? DEFAULT_ELO,
+    color: player.color,
+  }));
+}
+
+// â”€â”€ EloRank badge â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function EloLabel({ rating }: { rating: number }) {
   return <span className="rp-elo-tag">Elo {rating}</span>;
 }
 
-// PlayerCard
+// â”€â”€ PlayerCard â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function PlayerCard({ player, slot }: { player: PlayerSlot | null; slot: 1 | 2 }) {
   if (!player) {
@@ -207,7 +208,7 @@ function PlayerCard({ player, slot }: { player: PlayerSlot | null; slot: 1 | 2 }
   );
 }
 
-// Settings Panel
+// â”€â”€ Settings Panel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function SettingsPanel({
   settings,
@@ -236,9 +237,9 @@ function SettingsPanel({
 
   return (
     <div className="rp-settings">
-      <h3 className="rp-settings-title">Tùy chỉnh phòng đấu</h3>
+      <h3 className="rp-settings-title">⚙ Tùy chỉnh phòng đấu</h3>
 
-      {/* Room name */}
+      {/* Tên phòng */}
       <div className="rp-settings-group">
         <label className="rp-settings-label">Tên phòng</label>
 
@@ -276,14 +277,14 @@ function SettingsPanel({
             <span className="rp-settings-value">{settings.roomName}</span>
             {isHost && (
               <button type="button" className="rp-edit-btn" onClick={startEdit}>
-                Đổi tên
+                ✎ Đổi tên
               </button>
             )}
           </div>
         )}
       </div>
 
-      {/* Piece color */}
+      {/* Màu quân */}
       <div className="rp-settings-group">
         <label className="rp-settings-label">Màu quân của Host</label>
         <div className="rp-color-picker">
@@ -299,13 +300,13 @@ function SettingsPanel({
                 !isHost ? "rp-color-btn--disabled" : "",
               ].join(" ")}
             >
-              {c === "white" ? "♔ Trắng" : c === "black" ? "♚ Đen" : "Random"}
+              {c === "white" ? "♔ Trắng" : c === "black" ? "♚ Đen" : "🔀 Random"}
             </button>
           ))}
         </div>
       </div>
 
-      {/* Time control */}
+      {/* Thời gian */}
       <div className="rp-settings-group">
         <label className="rp-settings-label">Thời gian ván đấu</label>
         <div className="rp-time-presets">
@@ -369,14 +370,14 @@ function SettingsPanel({
 
       {!isHost && (
         <p className="rp-host-only-note">
-          Chỉ chủ phòng mới có thể thay đổi cài đặt.
+          ⚠ Chỉ chủ phòng mới có thể thay đổi cài đặt
         </p>
       )}
     </div>
   );
 }
 
-// Main Page
+// â”€â”€ Main Page â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function RoomPage() {
   const navigate   = useNavigate();
@@ -405,8 +406,8 @@ function RoomPage() {
   });
 
   const currentPlayer = useMemo(
-    () => room.players.find((p) => p.id === CURRENT_USER_ID),
-    [room.players]
+    () => room.players.find((p) => p.id === currentUser.id),
+    [currentUser.id, room.players]
   );
 
   const isHost           = !!currentPlayer?.isHost;
@@ -417,44 +418,145 @@ function RoomPage() {
     .every((p) => p.isReady);
   const canStart = isHost && hasEnoughPlayers && allGuestsReady;
 
-  // Settings updater
+  useEffect(() => {
+    if (!hasAuthSession || !room.id) {
+      return;
+    }
+
+    const socket = getAppSocket();
+    if (!socket) {
+      return;
+    }
+
+    const handleRoomJoined = (payload: { roomId: string; players?: SocketRoomPlayer[] }) => {
+      if (payload.roomId !== room.id || !payload.players) {
+        return;
+      }
+
+      setRoom((prev) => ({
+        ...prev,
+        players: mapSocketPlayers(payload.players!, currentUser),
+        status: payload.players!.length >= prev.maxPlayers ? "ready_to_start" : "waiting",
+      }));
+    };
+
+    const handlePlayerJoined = (payload: SocketRoomPlayer) => {
+      setRoom((prev) => {
+        if (prev.players.some((player) => player.id === payload.userId)) {
+          return prev;
+        }
+
+        const nextPlayers = [
+          ...prev.players,
+          ...mapSocketPlayers([{ ...payload, isHost: false }], currentUser),
+        ].slice(0, prev.maxPlayers);
+
+        return {
+          ...prev,
+          players: nextPlayers,
+          status: nextPlayers.length >= prev.maxPlayers ? "ready_to_start" : "waiting",
+        };
+      });
+    };
+
+    const handlePlayerLeft = (payload: { userId: string }) => {
+      setRoom((prev) => {
+        const nextPlayers = prev.players.filter((player) => player.id !== payload.userId);
+        return {
+          ...prev,
+          players: nextPlayers,
+          status: "waiting",
+        };
+      });
+    };
+
+    const handlePlayerReadyChanged = (payload: { roomId: string; userId: string; isReady: boolean }) => {
+      if (payload.roomId !== room.id) {
+        return;
+      }
+
+      setRoom((prev) => ({
+        ...prev,
+        players: prev.players.map((player) =>
+          player.id === payload.userId
+            ? { ...player, isReady: player.isHost || payload.isReady }
+            : player
+        ),
+      }));
+    };
+
+    const handleGameStarted = (payload: SocketGameStartedPayload) => {
+      if (payload.roomId !== room.id) {
+        return;
+      }
+
+      const self = room.players.find((player) => player.id === currentUser.id);
+      const opponent = room.players.find((player) => player.id !== currentUser.id);
+
+      navigate("/board", {
+        state: {
+          roomId: payload.roomId,
+          gameId: payload.gameId,
+          roomName: payload.roomName || room.name,
+          roomCode: payload.roomCode || room.code,
+          playerColor: self?.color ?? "white",
+          playerElo: self?.rating ?? currentUser.elo ?? DEFAULT_ELO,
+          opponentName: opponent?.displayName ?? "Đối thủ",
+          opponentElo: opponent?.rating ?? DEFAULT_ELO,
+        },
+      });
+    };
+
+    const handleRoomError = (message: string) => {
+      alert(message);
+      navigate("/rooms", { replace: true });
+    };
+
+    socket.on("room_joined", handleRoomJoined);
+    socket.on("player_joined", handlePlayerJoined);
+    socket.on("player_left", handlePlayerLeft);
+    socket.on("player_ready_changed", handlePlayerReadyChanged);
+    socket.on("game_started", handleGameStarted);
+    socket.on("room_error", handleRoomError);
+
+    if (!socket.connected) {
+      socket.connect();
+    }
+    socket.emit("join_room", { roomId: room.id });
+
+    return () => {
+      socket.off("room_joined", handleRoomJoined);
+      socket.off("player_joined", handlePlayerJoined);
+      socket.off("player_left", handlePlayerLeft);
+      socket.off("player_ready_changed", handlePlayerReadyChanged);
+      socket.off("game_started", handleGameStarted);
+      socket.off("room_error", handleRoomError);
+    };
+  }, [currentUser, hasAuthSession, navigate, room.code, room.id, room.name, room.players]);
+
+  // â”€â”€ Setting updater â”€â”€
 
   const updateSetting = <K extends keyof RoomSettings>(
     key: K,
     value: RoomSettings[K]
   ) => {
     setSettings((prev) => ({ ...prev, [key]: value }));
-
     if (key === "roomName") {
       setRoom((r) => ({ ...r, name: value as string }));
     }
-
-    if (key === "hostColor") {
-      const nextHostColor = resolveHostColor(value as RoomSettings["hostColor"]);
-      const nextGuestColor = getOppositeColor(nextHostColor);
-
-      setRoom((prev) => ({
-        ...prev,
-        players: prev.players.map((player) => {
-          if (player.isHost) {
-            return { ...player, color: nextHostColor };
-          }
-
-          return { ...player, color: nextGuestColor };
-        }),
-      }));
-    }
   };
 
-  // Handlers
+  // â”€â”€ Handlers â”€â”€
 
   const handleToggleReady = () => {
-    setRoom((prev) => ({
-      ...prev,
-      players: prev.players.map((p) =>
-        p.id === CURRENT_USER_ID ? { ...p, isReady: !p.isReady } : p
-      ),
-    }));
+    const nextReady = !currentPlayer?.isReady;
+    const socket = getAppSocket();
+
+    socket?.emit("room:ready", { roomId: room.id, ready: nextReady }, (response) => {
+      if (!response.ok) {
+        alert(response.message || "Không thể cập nhật trạng thái sẵn sàng.");
+      }
+    });
   };
 
   const handleStart = () => {
@@ -463,28 +565,17 @@ function RoomPage() {
       return;
     }
 
-    const selectedPlayerColor = currentPlayer?.color ?? "white";
-    const opponent = room.players.find((player) => player.id !== CURRENT_USER_ID);
-    const selectedTimeControl =
-      settings.timeControl === "custom" ? settings.customMinutes : settings.timeControl;
-
-    navigate("/board", {
-      state: {
-        roomId: room.id,
-        roomName: room.name,
-        roomCode: room.code,
-        playerColor: selectedPlayerColor,
-        opponentName: opponent?.displayName,
-        playerElo: currentPlayer?.rating,
-        opponentElo: opponent?.rating,
-        timeControl: selectedTimeControl,
-        bonusSeconds: settings.bonusSeconds,
-      },
+    const socket = getAppSocket();
+    socket?.emit("room:start", { roomId: room.id }, (response) => {
+      if (!response.ok) {
+        alert(response.message || "Không thể bắt đầu ván đấu.");
+      }
     });
   };
 
   const handleLeave = () => {
-    // Quick match returns to the lobby; custom rooms return to the room list.
+    const socket = getAppSocket();
+    socket?.emit("leave_room", { roomId: room.id });
     const target = routeState?.source === "quick-join" ? "/lobby" : "/rooms";
     navigate(target);
   };
@@ -505,7 +596,7 @@ function RoomPage() {
     <div className="room-page">
       <div className="room-desktop">
 
-        {/* Top bar */}
+        {/* â”€â”€ TOPBAR â”€â”€ */}
         <header className="room-topbar">
           <button
             type="button"
@@ -554,7 +645,7 @@ function RoomPage() {
           </div>
         </header>
 
-        {/* Body */}
+        {/* â”€â”€ BODY â”€â”€ */}
         <main className="room-body">
 
           {/* LEFT: players + chat */}
@@ -591,7 +682,7 @@ function RoomPage() {
                   className="rp-btn rp-btn--ready"
                   onClick={handleToggleReady}
                 >
-                  {currentPlayer?.isReady ? "Hủy sẵn sàng" : "✓ Sẵn sàng"}
+                  {currentPlayer?.isReady ? "⟳ Hủy sẵn sàng" : "✓ Sẵn sàng"}
                 </button>
               )}
 
@@ -606,7 +697,7 @@ function RoomPage() {
                     : undefined
                 }
               >
-                Bắt đầu ván đấu
+                ▶ Bắt đầu ván đấu
               </button>
 
               <button
@@ -614,7 +705,7 @@ function RoomPage() {
                 className="rp-btn rp-btn--leave"
                 onClick={handleLeave}
               >
-                Rời phòng
+                ← Rời phòng
               </button>
             </div>
 

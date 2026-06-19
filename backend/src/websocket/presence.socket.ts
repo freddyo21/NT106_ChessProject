@@ -37,6 +37,18 @@ function getPresenceList() {
     );
 }
 
+export function updatePresenceElo(userId: string, elo: number): PresenceUser | null {
+    const presenceUser = onlineUsers.get(userId);
+
+    if (!presenceUser) {
+        return null;
+    }
+
+    const updatedUser = { ...presenceUser, elo };
+    onlineUsers.set(userId, updatedUser);
+    return updatedUser;
+}
+
 export function presenceSocket(socket: Socket) {
     const presenceUser = getPresenceUser(socket);
 

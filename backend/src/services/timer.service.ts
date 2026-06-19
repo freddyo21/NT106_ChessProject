@@ -5,6 +5,7 @@ import type { TimeControlType } from "../types/TimeControl";
 import type { TimeControl, TimerSnapshot } from "../types/Timer";
 const logger = new Logger("timer-service");
 
+type IntervalHandle = ReturnType<typeof setInterval>;
 
 interface TimerState {
     gameId: string;
@@ -12,7 +13,7 @@ interface TimerState {
     blackTimeLeft: number;
     currentTurn: PieceColor;
     incrementSeconds: number;
-    intervalId: NodeJS.Timeout | null;
+    intervalId: IntervalHandle | null;
     lastTickAt: number;
     onTimeout: (color: PieceColor) => void;
 }
@@ -29,6 +30,7 @@ export const TIME_CONTROLS: Record<TimeControlType, TimeControl> = {
 
 //-----roomId -> TimerState
 const timers = new Map<string, TimerState>();
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 //--------Internal helpers-------
 const tick = (roomId: string) => {
@@ -131,9 +133,11 @@ export const switchTurn = async (roomId: string): Promise<TimerSnapshot | null> 
     state.currentTurn = state.currentTurn === "white" ? "black" : "white";
     state.lastTickAt = Date.now();
 
-    //Preset xuống DB (best-effort, không block)
-    gameRepository.updateTimeLeft(state.gameId, state.whiteTimeLeft, state.blackTimeLeft)
-        .catch((err) => logger.error("updateTimeLeft failed", { roomId, err }));
+    // Persist to DB only when the game was created in Postgres. Ad-hoc room codes are not UUID game IDs.
+    if (UUID_PATTERN.test(state.gameId)) {
+        gameRepository.updateTimeLeft(state.gameId, state.whiteTimeLeft, state.blackTimeLeft)
+            .catch((err) => logger.error("updateTimeLeft failed", { roomId, err }));
+    }
  
     return getSnapshot(roomId);
 };
@@ -181,6 +185,8 @@ export const getSnapshot = (roomId: string): TimerSnapshot | null => {
         updatedAt: Date.now(),
     };
 };
+
+export const hasTimer = (roomId: string): boolean => timers.has(roomId);
 
 
 

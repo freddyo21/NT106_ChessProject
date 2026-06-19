@@ -1,17 +1,24 @@
 import { Socket } from "socket.io";
-import { ChessMovePayloadSchema, GameReadyPayloadSchema, TimerSyncPayloadSchema } from "@zess-online-chess/shared";
+import { ChessMovePayloadSchema, DEFAULT_ELO, GameReadyPayloadSchema, JoinRoomPayloadSchema, TimerSyncPayloadSchema } from "@zess-online-chess/shared";
 import { Position } from "../types/Position";
-import { getGameRoom } from "./room-management.socket";
+import { createAiGameRoom, getGameRoom, type AiDifficulty } from "./room-management.socket";
+import { updatePresenceElo } from "./presence.socket";
 import { AuthorizedRoomContext, GameActionCallback, GameRoom, GameStatePayload, PromotionPiece } from "../types/Gameplay";
 import { InvalidMoveException } from "../exceptions";
-import * as timerService from "../services/timer.service";
+import { applyMatchEloResult } from "../services/elo.service";
+import { createTimer, destroyTimer, getSnapshot, hasTimer, startTimer, switchTurn, TIME_CONTROLS } from "../services/timer.service";
+import { AI_MOVE_DELAY_MS, chooseAiMove, isAiDifficulty } from "../services/chess-ai.service";
+import { buildGameStatePayload } from "../utils/game-payload";
+import * as gameRepository from "../repositories/game.repository";
+import type { PieceColor } from "../types/GameResult";
+import type { TimeControlType } from "../types/TimeControl";
+import { Logger } from "../utils/Logger";
 
 const PROMOTION_PIECES: PromotionPiece[] = ["queen", "rook", "bishop", "knight"];
-  
 const DEFAULT_TIME_CONTROL: TimeControlType = "blitz";
 const roomToGameId = new Map<string, string>();
+const drawOffers = new Map<string, string>();
 
-// Chỉ các trạng thái kết thúc ván mới được dùng để cộng/trừ Elo.
 const getGameResultFromStatus = (status: string): "white" | "black" | "draw" | null => {
     if (status === "white_wins") return "white";
     if (status === "black_wins") return "black";
@@ -19,12 +26,16 @@ const getGameResultFromStatus = (status: string): "white" | "black" | "draw" | n
         status === "stalemate" ||
         status === "draw_insufficient_material" ||
         status === "draw_fifty_move_rule"
-    ) return "draw";
+    ) {
+        return "draw";
+    }
 
     return null;
 };
 
 export const gameplaySocket = (socket: Socket) => {
+    const logger = new Logger("gameplay-socket");
+
     const emitGameError = (callback: GameActionCallback | undefined, err: unknown) => {
         const message = err instanceof Error ? err.message : "Unknown game error";
         socket.emit("game_error", { message });
@@ -32,12 +43,13 @@ export const gameplaySocket = (socket: Socket) => {
     };
 
     const getAuthorizedRoomContext = (roomId: string): AuthorizedRoomContext => {
-        // Mọi action gameplay phải đến từ socket đã join đúng room để tránh move chéo phòng.
         if (!roomId) throw new Error("Missing roomId");
         if (!socket.rooms.has(roomId)) throw new Error("You are not in this room");
 
         const room = getGameRoom(roomId);
         if (!room) throw new Error("Room not found");
+        if (room.players.length < 2) throw new Error("Need two players in the room");
+        if (room.ratedResult) throw new Error("Game already ended");
 
         const player = room.players.find((p) => p.socketId === socket.id);
         if (!player) throw new Error("Player not found in room");
@@ -45,23 +57,57 @@ export const gameplaySocket = (socket: Socket) => {
         return { room, player };
     };
 
-    const buildGameStatePayload = (roomId: string, room: GameRoom): GameStatePayload => ({
-        // Payload này là nguồn đồng bộ board/turn/status cho cả hai client trong cùng phòng.
-        roomId,
-        currentTurn: room.game.getCurrentTurn(),
-        board: room.game.getBoard(),
-        kingPositions: {
-            white: room.game.getKingPosition("white"),
-            black: room.game.getKingPosition("black"),
-        },
-        gameStatus: room.game.getGameStatus(),
-    });
+    const isAiRoom = (roomId: string, room: GameRoom) =>
+        roomId.startsWith("ai-") || room.players.some((player) => player.userId === "ai-bot");
 
-    const applyRatedResultIfNeeded = async (room: GameRoom) => {
-        const result = getRatedResultFromGameStatus(room.game.getGameStatus());
+    const scheduleAiMove = (roomId: string) => {
+        setTimeout(async () => {
+            const room = getGameRoom(roomId);
 
-        // ratedResult đảm bảo một ván chỉ apply Elo đúng một lần, kể cả client emit lại sau khi kết thúc.
-        if (!result || room.ratedResult) {
+            if (!room || !isAiRoom(roomId, room) || room.ratedResult || room.game.getCurrentTurn() !== "black") {
+                return;
+            }
+
+            const aiMove = chooseAiMove(room);
+            if (!aiMove) {
+                await handleGameEnd(roomId, room);
+                return;
+            }
+
+            const moved = room.game.movePiece(aiMove.from, aiMove.to, aiMove.promotionPiece);
+            if (!moved) {
+                socket.nsp.to(roomId).emit("game_error", { message: "AI could not make a legal move" });
+                return;
+            }
+
+            const gameStatus = room.game.getGameStatus();
+            const isGameOver = getGameResultFromStatus(gameStatus) !== null;
+            const timerSnapshot = isGameOver ? null : await switchTurn(roomId);
+
+            if (isGameOver) {
+                await handleGameEnd(roomId, room);
+            }
+
+            socket.nsp.to(roomId).emit("chess_move", {
+                ...buildGameStatePayload(roomId, room),
+                timer: timerSnapshot,
+                from: aiMove.from,
+                to: aiMove.to,
+                ...(aiMove.promotionPiece ? { promotionPiece: aiMove.promotionPiece } : {}),
+            });
+        }, AI_MOVE_DELAY_MS);
+    };
+
+    const applyRatedResult = async (
+        room: GameRoom,
+        result: "white" | "black" | "draw",
+        reason: "checkmate" | "resign" | "draw_agreement" = "checkmate"
+    ) => {
+        if (room.ratedResult) {
+            return;
+        }
+
+        if (room.players.some((player) => player.userId === "ai-bot")) {
             return;
         }
 
@@ -80,9 +126,12 @@ export const gameplaySocket = (socket: Socket) => {
             result,
         });
 
-        // Cập nhật Elo in-memory để room list/board sau đó thấy Elo mới ngay, không cần reconnect.
         whitePlayer.elo = eloResult.whiteNextElo;
         blackPlayer.elo = eloResult.blackNextElo;
+        const updatedWhitePresence = updatePresenceElo(whitePlayer.userId, eloResult.whiteNextElo);
+        const updatedBlackPresence = updatePresenceElo(blackPlayer.userId, eloResult.blackNextElo);
+        if (updatedWhitePresence) socket.nsp.emit("presence:user_online", updatedWhitePresence);
+        if (updatedBlackPresence) socket.nsp.emit("presence:user_online", updatedBlackPresence);
         room.ratedResult = {
             result,
             whiteDelta: eloResult.whiteDelta,
@@ -90,29 +139,104 @@ export const gameplaySocket = (socket: Socket) => {
             whiteNextElo: eloResult.whiteNextElo,
             blackNextElo: eloResult.blackNextElo,
         };
+
+        if (room.gameId) {
+            const [whiteRating, blackRating] = await Promise.all([
+                gameRepository.getRatingOrDefault(whitePlayer.userId),
+                gameRepository.getRatingOrDefault(blackPlayer.userId),
+            ]);
+            const gameResult = result === "white" ? "white_win" : result === "black" ? "black_win" : "draw";
+
+            await Promise.all([
+                gameRepository.updateRating({
+                    userId: whitePlayer.userId,
+                    newRating: eloResult.whiteNextElo,
+                    result: result === "white" ? "win" : result === "black" ? "loss" : "draw",
+                }),
+                gameRepository.updateRating({
+                    userId: blackPlayer.userId,
+                    newRating: eloResult.blackNextElo,
+                    result: result === "black" ? "win" : result === "white" ? "loss" : "draw",
+                }),
+                gameRepository.finishGame({
+                    gameId: room.gameId,
+                    result: gameResult,
+                    terminationReason: reason,
+                    winnerId: result === "white" ? whitePlayer.userId : result === "black" ? blackPlayer.userId : null,
+                    moveCount: room.game.getMoveCount(),
+                }),
+                gameRepository.insertRatingHistory(whitePlayer.userId, room.gameId, whiteRating.rating, eloResult.whiteNextElo),
+                gameRepository.insertRatingHistory(blackPlayer.userId, room.gameId, blackRating.rating, eloResult.blackNextElo),
+            ]);
+        }
     };
 
-    const runGameAction = async <T extends object = {}>({
-      
-      
-//     const handleGameEnd = (roomId: string, room: GameRoom, timedOutColor?: "white" | "black") => {
-//         destroyTimer(roomId);
-//         roomToGameId.delete(roomId);
+    const applyRatedResultIfNeeded = async (room: GameRoom) => {
+        if (room.players.some((player) => player.userId === "ai-bot")) {
+            return;
+        }
 
-//         if (timedOutColor) {
-//             socket.nsp.to(roomId).emit("game_timeout", {
-//                 loser: timedOutColor,
-//                 winner: timedOutColor === "white" ? "black" : "white",
-//             });
-//         }
+        const result = getGameResultFromStatus(room.game.getGameStatus());
 
-//         socket.nsp.to(roomId).emit("game_over", {
-//             ...buildGameStatePayload(roomId, room),
-//             timer: null,
-//         });
-//     };
+        if (!result) {
+            return;
+        }
 
-//     const runGameAction = async <T extends object = Record<string, never>>({
+        await applyRatedResult(room, result);
+    };
+
+    const emitManualGameOver = async (
+        roomId: string,
+        room: GameRoom,
+        result: "white" | "black" | "draw",
+        gameStatus: "white_wins" | "black_wins" | "draw_agreement",
+        reason: "resign" | "draw_agreement",
+    ) => {
+        destroyTimer(roomId);
+        roomToGameId.delete(roomId);
+        drawOffers.delete(roomId);
+        try {
+            await applyRatedResult(room, result, reason);
+        } catch (error) {
+            logger.error("Failed to persist manual game result", { roomId, reason, error });
+        }
+
+        const payload = {
+            ...buildGameStatePayload(roomId, room),
+            gameStatus,
+            reason,
+            eloUpdate: room.ratedResult,
+            timer: null,
+        };
+
+        socket.nsp.to(roomId).emit("game_over", payload);
+        room.players.forEach((player) => {
+            if (player.socketId !== "__ai__") {
+                socket.nsp.to(player.socketId).emit("game_over", payload);
+            }
+        });
+    };
+
+    const handleGameEnd = async (roomId: string, room: GameRoom, timedOutColor?: PieceColor) => {
+        destroyTimer(roomId);
+        roomToGameId.delete(roomId);
+        await applyRatedResultIfNeeded(room);
+
+        if (timedOutColor) {
+            socket.nsp.to(roomId).emit("game_timeout", {
+                loser: timedOutColor,
+                winner: timedOutColor === "white" ? "black" : "white",
+            });
+        }
+
+        socket.nsp.to(roomId).emit("game_over", {
+            ...buildGameStatePayload(roomId, room),
+            eloUpdate: room.ratedResult,
+            timer: null,
+        });
+    };
+
+    const runGameAction = async <T extends object = Record<string, never>>({
         roomId,
         eventName,
         callback,
@@ -126,33 +250,75 @@ export const gameplaySocket = (socket: Socket) => {
         try {
             const context = getAuthorizedRoomContext(roomId);
             const extraPayload = action(context) ?? ({} as T);
-            // Sau mỗi action hợp lệ, kiểm tra xem nước đi đó có kết thúc ván và cần tính Elo không.
             await applyRatedResultIfNeeded(context.room);
+
+            const gameStatus = context.room.game.getGameStatus();
+            const isGameOver = getGameResultFromStatus(gameStatus) !== null;
+            const timerSnapshot = isGameOver ? null : await switchTurn(roomId);
+
+            if (isGameOver) {
+                await handleGameEnd(roomId, context.room);
+            }
+
             const payload: GameStatePayload & T = {
                 ...buildGameStatePayload(roomId, context.room),
-                // eloUpdate chỉ xuất hiện khi ván đã chốt Elo, frontend dùng để cập nhật badge và thông báo.
                 eloUpdate: context.room.ratedResult,
-//             const gameStatus = context.room.game.getGameStatus();
-//             const isGameOver = getGameResultFromStatus(gameStatus) !== null;
-
-//             const timerSnapshot = isGameOver ? null : await switchTurn(roomId);
-
-//             if (isGameOver) {
-//                 handleGameEnd(roomId, context.room);
-//             }
-
-//             const payload = {
-//                 ...buildGameStatePayload(roomId, context.room),
-//                 timer: isGameOver ? null : timerSnapshot,
+                timer: timerSnapshot,
                 ...extraPayload,
             };
 
             socket.nsp.to(roomId).emit(eventName, payload);
-            callback?.({ ok: true, ...payload });
+            (callback as ((response: { ok: true }) => void) | undefined)?.({ ok: true });
+
+            if (eventName === "chess_move" && isAiRoom(roomId, context.room) && context.room.game.getCurrentTurn() === "black") {
+                scheduleAiMove(roomId);
+            }
         } catch (err) {
             emitGameError(callback, err);
         }
     };
+
+    socket.on("ai:start", (data?: { difficulty?: AiDifficulty } | GameActionCallback, callback?: GameActionCallback) => {
+        const user = socket.data.user;
+        const userId = user?.id;
+        const resolvedCallback = typeof data === "function" ? data : callback;
+        const requestedDifficulty = typeof data === "object" ? data?.difficulty : undefined;
+        const difficulty = isAiDifficulty(requestedDifficulty)
+            ? requestedDifficulty
+            : "medium";
+
+        if (!userId) {
+            return emitGameError(resolvedCallback, new Error("Missing authenticated user"));
+        }
+
+        const roomId = `ai-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
+        const room = createAiGameRoom(roomId, {
+            userId,
+            socketId: socket.id,
+            username: user?.username || "Player",
+            elo: typeof user?.elo === "number" ? user.elo : DEFAULT_ELO,
+        }, difficulty);
+
+        socket.join(roomId);
+        createTimer(
+            roomId,
+            roomId,
+            TIME_CONTROLS[DEFAULT_TIME_CONTROL],
+            (timedOutColor) => {
+                const currentRoom = getGameRoom(roomId);
+                if (!currentRoom) return;
+
+                void handleGameEnd(roomId, currentRoom, timedOutColor);
+            }
+        );
+        startTimer(roomId);
+
+        resolvedCallback?.({
+            ok: true,
+            ...buildGameStatePayload(roomId, room),
+            timer: getSnapshot(roomId),
+        });
+    });
 
     socket.on("game:ready", (data) => {
         const result = GameReadyPayloadSchema.safeParse(data);
@@ -167,21 +333,20 @@ export const gameplaySocket = (socket: Socket) => {
         if (!room || room.players.length < 2) return;
         if (getSnapshot(roomId)) return;
 
-        if (gameId) {
-            roomToGameId.set(roomId, gameId);
-        }
+        const resolvedGameId = room.gameId ?? gameId ?? roomId;
+        roomToGameId.set(roomId, resolvedGameId);
 
         const timeControl = TIME_CONTROLS[DEFAULT_TIME_CONTROL];
 
         createTimer(
             roomId,
-            gameId ?? roomId,
+            resolvedGameId,
             timeControl,
             (timedOutColor) => {
                 const currentRoom = getGameRoom(roomId);
                 if (!currentRoom) return;
 
-                handleGameEnd(roomId, currentRoom, timedOutColor);
+                void handleGameEnd(roomId, currentRoom, timedOutColor);
             }
         );
 
@@ -212,6 +377,10 @@ export const gameplaySocket = (socket: Socket) => {
             eventName: "chess_move",
             callback,
             action: ({ room, player }) => {
+                if (!hasTimer(roomId)) {
+                    throw new InvalidMoveException("Game has not started yet");
+                }
+
                 const piece = room.game.getPieceAt(from);
                 if (!piece) throw new InvalidMoveException("No piece at source square");
                 if (piece.color !== player.color) throw new InvalidMoveException("You cannot move opponent's piece");
@@ -220,22 +389,161 @@ export const gameplaySocket = (socket: Socket) => {
                     throw new InvalidMoveException("It is not your turn!");
                 }
 
-                if (
-                    promotionPiece !== undefined &&
-                    !PROMOTION_PIECES.includes(promotionPiece)
-                ) {
+                if (promotionPiece !== undefined && !PROMOTION_PIECES.includes(promotionPiece)) {
                     throw new InvalidMoveException("Invalid promotion piece");
                 }
 
                 const moved = room.game.movePiece(from, to, promotionPiece);
                 if (!moved) throw new InvalidMoveException("Illegal move");
 
-
                 return promotionPiece === undefined
                     ? { from, to }
                     : { from, to, promotionPiece };
             },
         });
+    });
+
+    socket.on("game:resign", async (data, callback?: GameActionCallback<{ reason: "resign" }>) => {
+        const result = JoinRoomPayloadSchema.safeParse(data);
+
+        if (!result.success) {
+            return emitGameError(callback, new Error("Invalid resign payload"));
+        }
+
+        const { roomId } = result.data;
+
+        try {
+            const { room, player } = getAuthorizedRoomContext(roomId);
+            const winner = player.color === "white" ? "black" : "white";
+
+            await emitManualGameOver(
+                roomId,
+                room,
+                winner,
+                winner === "white" ? "white_wins" : "black_wins",
+                "resign",
+            );
+
+            callback?.({
+                ok: true,
+                ...buildGameStatePayload(roomId, room),
+                gameStatus: winner === "white" ? "white_wins" : "black_wins",
+                reason: "resign",
+                eloUpdate: room.ratedResult,
+                timer: null,
+            });
+        } catch (err) {
+            emitGameError(callback, err);
+        }
+    });
+
+    socket.on("draw:offer", async (data, callback?: GameActionCallback<{ offeredBy?: string; reason?: "draw_agreement" }>) => {
+        const result = JoinRoomPayloadSchema.safeParse(data);
+
+        if (!result.success) {
+            return emitGameError(callback, new Error("Invalid draw offer payload"));
+        }
+
+        try {
+            const { roomId } = result.data;
+            const { room, player } = getAuthorizedRoomContext(roomId);
+
+            if (room.players.length < 2) {
+                throw new Error("Cannot offer draw before both players join");
+            }
+
+            const existingOfferBy = drawOffers.get(roomId);
+            if (existingOfferBy && existingOfferBy !== player.userId) {
+                await emitManualGameOver(roomId, room, "draw", "draw_agreement", "draw_agreement");
+                callback?.({
+                    ok: true,
+                    ...buildGameStatePayload(roomId, room),
+                    gameStatus: "draw_agreement",
+                    reason: "draw_agreement",
+                    eloUpdate: room.ratedResult,
+                    timer: null,
+                });
+                return;
+            }
+
+            drawOffers.set(roomId, player.userId);
+            const payload = {
+                roomId,
+                offeredBy: player.userId,
+                username: player.username,
+            };
+            socket.to(roomId).emit("draw:offer", payload);
+            room.players.forEach((roomPlayer) => {
+                if (roomPlayer.userId !== player.userId && roomPlayer.socketId !== "__ai__") {
+                    socket.nsp.to(roomPlayer.socketId).emit("draw:offer", payload);
+                }
+            });
+            callback?.({
+                ok: true,
+                ...buildGameStatePayload(roomId, room),
+                offeredBy: player.userId,
+            });
+        } catch (err) {
+            emitGameError(callback, err);
+        }
+    });
+
+    socket.on("draw:accept", async (data, callback?: GameActionCallback<{ reason: "draw_agreement" }>) => {
+        const result = JoinRoomPayloadSchema.safeParse(data);
+
+        if (!result.success) {
+            return emitGameError(callback, new Error("Invalid draw accept payload"));
+        }
+
+        try {
+            const { roomId } = result.data;
+            const { room, player } = getAuthorizedRoomContext(roomId);
+            const offeredBy = drawOffers.get(roomId);
+
+            if (!offeredBy || offeredBy === player.userId) {
+                throw new Error("No opponent draw offer to accept");
+            }
+
+            await emitManualGameOver(roomId, room, "draw", "draw_agreement", "draw_agreement");
+            callback?.({
+                ok: true,
+                ...buildGameStatePayload(roomId, room),
+                gameStatus: "draw_agreement",
+                reason: "draw_agreement",
+                eloUpdate: room.ratedResult,
+                timer: null,
+            });
+        } catch (err) {
+            emitGameError(callback, err);
+        }
+    });
+
+    socket.on("draw:decline", (data) => {
+        const result = JoinRoomPayloadSchema.safeParse(data);
+
+        if (!result.success) {
+            return socket.emit("game_error", { message: "Invalid draw decline payload" });
+        }
+
+        try {
+            const { roomId } = result.data;
+            const { player } = getAuthorizedRoomContext(roomId);
+            const offeredBy = drawOffers.get(roomId);
+
+            if (!offeredBy || offeredBy === player.userId) {
+                return;
+            }
+
+            drawOffers.delete(roomId);
+            socket.to(roomId).emit("draw:declined", {
+                roomId,
+                declinedBy: player.userId,
+                username: player.username,
+            });
+        } catch (err) {
+            const message = err instanceof Error ? err.message : "Unknown game error";
+            socket.emit("game_error", { message });
+        }
     });
 
     socket.on("timer:sync", (data) => {

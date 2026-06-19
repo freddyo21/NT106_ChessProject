@@ -92,6 +92,7 @@ export const createGame = async (data: CreateGameData): Promise<GameRow> => {
             whitePlayerId, blackPlayerId, createdBy, roomCode,
             isPrivate, gameMode, aiLevel ?? null,
             timeControlType, initialTimeSeconds, incrementSeconds,
+            initialTimeSeconds, initialTimeSeconds,
             whiteRatingSnapshot ?? null, blackRatingSnapshot ?? null,
         ]
     );
@@ -299,7 +300,6 @@ export const getRatingOrDefault = async (userId: string): Promise<PlayerRatingRo
         `
             INSERT INTO player_ratings (user_id)
             VALUES ($1)
-            ON CONFLICT (user_id) DO UPDATE SET updated_at = now()
             RETURNING ${RATING_SELECT_COLUMNS}
             `,
         [userId]
@@ -312,6 +312,8 @@ export const getRatingOrDefault = async (userId: string): Promise<PlayerRatingRo
 export const updateRating = async (data: UpdateRatingData): Promise<PlayerRatingRow> => {
     const { userId, newRating, result } = data;
 
+    await getRatingOrDefault(userId);
+    
     // Dùng CASE WHEN trong SQL thay vì string interpolation — clean hơn, không rủi ro
     const queryResult = await pool.query<PlayerRatingRow>(
         `

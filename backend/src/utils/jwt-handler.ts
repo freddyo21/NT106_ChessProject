@@ -39,8 +39,6 @@ export const generateToken = (user: UserResponse, expiresIn: ms.StringValue = "1
     );
 };
 
-const refreshTokenStore = new Map<string, RefreshTokenRecord>();
-
 // const getSecretKey = (): string => {
 //     const key = process.env.JWT_SECRET_KEY; // Do not provide a default value for the secret key, as it is critical for security.
 //     const hasKey = key && key.trim().length > 0; // Check if the key exists and is not just whitespace.
@@ -52,6 +50,7 @@ const refreshTokenStore = new Map<string, RefreshTokenRecord>();
 //     return key;
 // };
 
+// Cần bỏ sau khi đã có Redis để blacklist refresh token
 const generateRefreshTokenString = (): string => {
     return crypto.randomBytes(32).toString("hex");
 };

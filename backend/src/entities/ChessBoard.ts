@@ -60,6 +60,10 @@ export class ChessBoard {
         return this.currentTurn;
     }
 
+    public getMoveCount(): number {
+        return this.history.length;
+    }
+
     private switchTurn(): void {
         this.currentTurn = this.currentTurn === "white" ? "black" : "white";
     }

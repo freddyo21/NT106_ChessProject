@@ -1,6 +1,7 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { DEFAULT_ELO, ERoles } from "@zess-online-chess/shared";
+import { HttpClient } from "../services/HttpClient";
 import {
   getCurrentUser,
   getUserDisplayName,
@@ -8,6 +9,7 @@ import {
   type AuthSessionUser,
 } from "../services/authSession";
 import { userChangePassword } from "../services/auth.services";
+import { getAppSocket, type PlayerProfileStatsPayload } from "../services/socketClient";
 import "./PlayerProfile.css";
 
 type PlayerProfileStats = {
@@ -15,6 +17,12 @@ type PlayerProfileStats = {
   wins: number;
   losses: number;
   draws: number;
+  gamesPlayed: number;
+  winRate: number;
+};
+
+type PlayerProfileStatsResponse = {
+  data: PlayerProfileStatsPayload;
 };
 
 function getFallbackUser(): AuthSessionUser {
@@ -59,17 +67,30 @@ function getErrorMessage(error: unknown) {
   return null;
 }
 
+function mapStatsPayload(payload: PlayerProfileStatsPayload): PlayerProfileStats {
+  return {
+    elo: Number(payload.rating) || DEFAULT_ELO,
+    wins: Number(payload.wins) || 0,
+    losses: Number(payload.losses) || 0,
+    draws: Number(payload.draws) || 0,
+    gamesPlayed: Number(payload.gamesPlayed) || 0,
+    winRate: Number(payload.winRate) || 0,
+  };
+}
+
 function PlayerProfile() {
   const navigate = useNavigate();
 
   const [currentUser, setCurrentUser] = useState<AuthSessionUser>(() =>
     getCurrentUser() ?? getFallbackUser()
   );
-  const [profileStats] = useState<PlayerProfileStats>(() => ({
+  const [profileStats, setProfileStats] = useState<PlayerProfileStats>(() => ({
     elo: currentUser.elo ?? DEFAULT_ELO,
     wins: 0,
     losses: 0,
     draws: 0,
+    gamesPlayed: 0,
+    winRate: 0,
   }));
 
   const [editedDisplayName, setEditedDisplayName] = useState(
@@ -82,18 +103,63 @@ function PlayerProfile() {
 
   const displayName = getUserDisplayName(currentUser);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadProfileStats() {
+      try {
+        const response = await HttpClient.get<PlayerProfileStatsResponse>("/leaderboard/me");
+        if (cancelled) return;
+
+        const nextStats = mapStatsPayload(response.data.data);
+        setProfileStats(nextStats);
+        setCurrentUser((prevUser) => {
+          const updatedUser = { ...prevUser, elo: nextStats.elo };
+          updateAuthSessionUser(updatedUser);
+          return updatedUser;
+        });
+      } catch {
+        // Keep the session fallback visible if stats cannot be loaded.
+      }
+    }
+
+    loadProfileStats();
+
+    const socket = getAppSocket();
+    const handleStatsUpdated = (payload: PlayerProfileStatsPayload) => {
+      if (payload.userId !== currentUser.id) return;
+
+      const nextStats = mapStatsPayload(payload);
+      setProfileStats(nextStats);
+      setCurrentUser((prevUser) => {
+        const updatedUser = { ...prevUser, elo: nextStats.elo };
+        updateAuthSessionUser(updatedUser);
+        return updatedUser;
+      });
+    };
+
+    socket?.on("profile:stats_updated", handleStatsUpdated);
+    if (socket && !socket.connected) {
+      socket.connect();
+    }
+
+    return () => {
+      cancelled = true;
+      socket?.off("profile:stats_updated", handleStatsUpdated);
+    };
+  }, [currentUser.id]);
+
   const avatarText = useMemo(() => {
     return getAvatarText(displayName, currentUser.username);
   }, [displayName, currentUser.username]);
 
   const totalGames = useMemo(() => {
-    return profileStats.wins + profileStats.losses + profileStats.draws;
+    return profileStats.gamesPlayed || profileStats.wins + profileStats.losses + profileStats.draws;
   }, [profileStats]);
 
   const winRate = useMemo(() => {
-    if (totalGames === 0) return 0;
-    return Math.round((profileStats.wins / totalGames) * 100);
-  }, [profileStats.wins, totalGames]);
+    return profileStats.winRate;
+  }, [profileStats.winRate]);
 
   const profileStatCards = useMemo(() => {
     return [

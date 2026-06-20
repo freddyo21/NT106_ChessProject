@@ -2,13 +2,10 @@ import { InvalidCredentialException, ServiceUnavailableException } from "../exce
 import { LoginRequestDTO, LoginRequestSchema, RegisterRequestDTO, RegisterRequestSchema, UserResponseSchema, UserSchema } from "@zess-online-chess/shared";
 import { randomBytes } from "node:crypto";
 import { ZodError } from "zod";
-import { InvalidCredentialException } from "../exceptions";
 import { deleteExpiredAuthTokens, storeAuthToken } from "../repositories/auth-token.repository";
-import { Exception, InvalidCredentialException } from "../exceptions";
 import * as userRepository from "../repositories/user.repository";
 import { comparePassword, hashPassword } from "../utils/hash";
 import { generateRefreshToken, generateToken, revokeRefreshToken, verifyRefreshToken } from "../utils/jwt-handler";
-import { ZodError } from "zod";
 
 const ACCESS_TOKEN_EXPIRY = "15m";
 const REFRESH_TOKEN_EXPIRY = "7d";
@@ -19,12 +16,6 @@ const toSafeUser = (user: ReturnType<typeof UserSchema.parse>) => {
     const userWithoutHash = { ...user };
     delete (userWithoutHash as Partial<typeof userWithoutHash>).passwordHash;
 
-    return UserResponseSchema.parse(userWithoutHash);
-};
-
-const toSafeUser = (user: ReturnType<typeof UserSchema.parse>) => {
-    const userWithoutHash = { ...user };
-    delete (userWithoutHash as Partial<typeof user>).passwordHash;
     return UserResponseSchema.parse(userWithoutHash);
 };
 
@@ -155,14 +146,8 @@ export const logout = async (refreshToken: string) => {
     await revokeRefreshToken(refreshToken);
 };
 
-// Store for password reset tokens (should use Redis in production)
-const resetTokenStore = new Map<string, { userId: string; expiresAt: number }>();
-
 const generateResetToken = (): string => {
-    const randomBytes = crypto.getRandomValues(new Uint8Array(32));
-    return Array.from(randomBytes)
-        .map((byte) => byte.toString(16).padStart(2, "0"))
-        .join("");
+    return randomBytes(32).toString("hex");
 };
 
 const cleanupExpiredResetTokens = async () => {
@@ -176,7 +161,7 @@ export const forgotPassword = async (email: string) => {
 
     if (user) {
         const resetToken = generateResetToken();
-        const expiresAtMs = Date.now() + 15 * 60 * 1000; // 15 minutes
+        const expiresAtMs = Date.now() + RESET_TOKEN_EXPIRY_MS;
 
         await storeAuthToken(resetToken, user.id, "password_reset", expiresAtMs);
 

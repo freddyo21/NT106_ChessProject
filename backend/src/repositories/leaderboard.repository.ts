@@ -2,6 +2,7 @@ import { pool } from "../config/database.config";
 import type {
     LeaderboardEntry,
     LeaderboardOptions,
+    PlayerProfileStats,
 } from "../types/LeaderBoard";
 //-------Repository Functions---------
 
@@ -148,4 +149,29 @@ export const getNearbyPlayers = async (
     );
  
     return result.rows;
+};
+
+export const getPlayerProfileStats = async (userId: string): Promise<PlayerProfileStats | null> => {
+    const result = await pool.query<PlayerProfileStats>(
+        `
+        SELECT
+            u.id AS "userId",
+            COALESCE(pr.rating, u.elo, 1200) AS rating,
+            COALESCE(pr.wins, 0) AS wins,
+            COALESCE(pr.losses, 0) AS losses,
+            COALESCE(pr.draws, 0) AS draws,
+            COALESCE(pr.games_played, 0) AS "gamesPlayed",
+            CASE
+                WHEN COALESCE(pr.games_played, 0) = 0 THEN 0
+                ELSE ROUND((COALESCE(pr.wins, 0)::numeric / pr.games_played) * 100, 1)
+            END AS "winRate"
+        FROM users u
+        LEFT JOIN player_ratings pr ON pr.user_id = u.id
+        WHERE u.id = $1
+        LIMIT 1
+        `,
+        [userId]
+    );
+
+    return result.rows[0] ?? null;
 };

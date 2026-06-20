@@ -29,3 +29,13 @@ export interface PlayerLeaderboardInfo {
     rank: number | null;
     nearbyPlayers: LeaderboardEntry[];
 }
+
+export interface PlayerProfileStats {
+    userId: string;
+    rating: number;
+    wins: number;
+    losses: number;
+    draws: number;
+    gamesPlayed: number;
+    winRate: number;
+}

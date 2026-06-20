@@ -8,6 +8,8 @@ type ServerToClientEvents = {
   "presence:list": (payload: PresenceUser[]) => void;
   "presence:user_online": (payload: PresenceUser) => void;
   "presence:user_offline": (payload: { userId: string; timestamp: string }) => void;
+  "profile:stats_updated": (payload: PlayerProfileStatsPayload) => void;
+  "leaderboard:changed": () => void;
   "lobby:joined": (payload: { roomId: string }) => void;
   "lobby:message": (payload: LobbyMessagePayload) => void;
   "chat": (payload: RoomMessagePayload) => void;
@@ -175,6 +177,16 @@ export type PresenceUser = {
   displayName: string;
   elo: number;
   status: "online" | "playing" | "idle";
+};
+
+export type PlayerProfileStatsPayload = {
+  userId: string;
+  rating: number;
+  wins: number;
+  losses: number;
+  draws: number;
+  gamesPlayed: number;
+  winRate: number;
 };
 
 export type LobbyMessagePayload = {

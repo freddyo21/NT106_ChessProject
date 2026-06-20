@@ -30,6 +30,7 @@
     "@supabase/supabase-js": "^2.106.2",
     "@zess-online-chess/shared": "file:../shared",
     "bcrypt": "^6.0.0",
+    "bonjour-service": "^1.4.1",
     "compression": "^1.8.1",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",

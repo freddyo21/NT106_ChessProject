@@ -1,5 +1,6 @@
 import "dotenv/config";
 
+import { publishMdnsService } from "./utils/mdns-publisher";
 import express, { Application, NextFunction, Request, Response } from "express";
 import cors from "cors";
 import compression from "compression";
@@ -47,6 +48,11 @@ async function initializeApp() {
     return new Promise<void>((resolve, reject) => {
         httpServer!.listen(PORT, () => {
             console.log(`Zess Chess System is running on port ${PORT}`);
+
+            if (process.env.MDNS_ENABLED === "true" && PORT === 3000) {
+                publishMdnsService(8080);
+            }
+
             resolve();
         }).on("error", (err: any) => {
             if (err.code === "EADDRINUSE") {

@@ -1,5 +1,6 @@
 import { io, type Socket } from "socket.io-client";
 import { getAccessToken } from "./authSession";
+import { getSocketUrl } from "./serverConfig";
 
 type ServerToClientEvents = {
   "server-info": (payload: { port?: string; hostname?: string }) => void;
@@ -236,27 +237,6 @@ export type SocketGameStartedPayload = {
 
 export type AppSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
 
-function getSocketUrl() {
-  const explicitSocketUrl = import.meta.env.VITE_SOCKET_URL;
-
-  if (explicitSocketUrl) {
-    return explicitSocketUrl.replace(/\/+$/, "");
-  }
-
-  const apiUrl =
-    import.meta.env.VITE_SERVER_API_URL ||
-    import.meta.env.VITE_API_URL ||
-    "http://localhost:3000/api/v1";
-
-  try {
-    // Socket.IO lives at the backend origin, not under the REST /api/v1 path.
-    return new URL(apiUrl).origin;
-  } catch {
-    return "http://localhost:3000";
-  }
-}
-
-const SOCKET_URL = getSocketUrl();
 
 let socketInstance: AppSocket | null = null;
 let socketToken: string | null = null;
@@ -279,7 +259,7 @@ export function getAppSocket() {
   }
 
   if (!socketInstance) {
-    socketInstance = io(SOCKET_URL, {
+    socketInstance = io(getSocketUrl(), {
       autoConnect: false,
       auth: { token },
       transports: ["websocket"],

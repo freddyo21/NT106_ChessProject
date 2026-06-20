@@ -2,6 +2,7 @@ import { io, type Socket } from "socket.io-client";
 import { getAccessToken } from "./authSession";
 
 type ServerToClientEvents = {
+  "server-info": (payload: { port?: string; hostname?: string }) => void;
   "connect": () => void;
   "connect_error": (error: Error) => void;
   "disconnect": (reason: string) => void;
@@ -281,8 +282,13 @@ export function getAppSocket() {
     socketInstance = io(SOCKET_URL, {
       autoConnect: false,
       auth: { token },
-      transports: ["websocket", "polling"],
+      transports: ["websocket"],
     });
+
+    socketInstance.on("server-info", (data) => {
+    console.log("Connected to backend:", data);
+  });
+
     socketToken = token;
   }
 

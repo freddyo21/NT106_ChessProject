@@ -29,7 +29,17 @@ const isDatabaseConnectionError = (error: unknown) => {
     }
 
     const code = "code" in error ? error.code : undefined;
-    return code === "ECONNREFUSED" || code === "ENOTFOUND" || code === "ETIMEDOUT";
+    const message = "message" in error && typeof error.message === "string"
+        ? error.message.toLowerCase()
+        : "";
+
+    return code === "ECONNREFUSED" ||
+        code === "ENOTFOUND" ||
+        code === "ETIMEDOUT" ||
+        code === "ECONNRESET" ||
+        message.includes("connection terminated") ||
+        message.includes("connection timeout") ||
+        message.includes("timeout exceeded");
 };
 
 const toAuthServiceError = (error: unknown) => {

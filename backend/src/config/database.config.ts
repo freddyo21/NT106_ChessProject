@@ -16,6 +16,8 @@ export const pool = new Pool({
     ssl: useSsl
         ? { rejectUnauthorized: false }
         : false,
+    connectionTimeoutMillis: Number(process.env.DB_CONNECTION_TIMEOUT_MS || 5000),
+    idleTimeoutMillis: Number(process.env.DB_IDLE_TIMEOUT_MS || 30000),
 });
 
 // const supabaseUrl = "https://djgqiiflytziciyfrcfw.supabase.co";

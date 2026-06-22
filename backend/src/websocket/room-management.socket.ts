@@ -8,6 +8,7 @@ import { destroyTimer } from "../services/timer.service";
 import * as gameRepository from "../repositories/game.repository";
 import { buildGameStatePayload, buildRoomJoinedPayload } from "../utils/game-payload";
 import { updatePresenceElo } from "./presence.socket";
+import * as leaderboardService from "../services/leaderboard.service";
 type PlayerColor = "white" | "black";
 export type AiDifficulty = "easy" | "medium" | "hard";
 
@@ -70,6 +71,19 @@ const buildRoomsList = () => {
 const emitRoomsChanged = (socket: Socket) => {
     // Room list là dữ liệu realtime trong memory, dùng để frontend bỏ danh sách phòng mock.
     socket.nsp.emit("rooms:changed", buildRoomsList());
+};
+
+const emitRatingRealtimeUpdates = async (socket: Socket, userIds: string[]) => {
+    const uniqueUserIds = [...new Set(userIds)];
+
+    const statsList = await Promise.all(
+        uniqueUserIds.map((userId) => leaderboardService.getPlayerProfileStats(userId))
+    );
+
+    statsList.forEach((stats) => {
+        socket.nsp.to(`user:${stats.userId}`).emit("profile:stats_updated", stats);
+    });
+    socket.nsp.emit("leaderboard:changed");
 };
 
 const ensureRoomGameCreated = async (roomId: string, room: GameRoom, createdBy: string) => {
@@ -165,6 +179,8 @@ const applyForfeitEloResult = async (socket: Socket, room: GameRoom, winner: Pla
             gameRepository.insertRatingHistory(whitePlayer.userId, room.gameId, whiteRating.rating, eloResult.whiteNextElo),
             gameRepository.insertRatingHistory(blackPlayer.userId, room.gameId, blackRating.rating, eloResult.blackNextElo),
         ]);
+
+        await emitRatingRealtimeUpdates(socket, [whitePlayer.userId, blackPlayer.userId]);
     }
 };
 

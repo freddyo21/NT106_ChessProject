@@ -3,6 +3,7 @@ import type {
     LeaderboardOptions,
     LeaderboardPage,
     PlayerLeaderboardInfo,
+    PlayerProfileStats,
 } from "../types/LeaderBoard";
 
 //-----------Service Functions---------
@@ -56,4 +57,14 @@ export const getTopTen = async () => {
         minGamesPlayed: 1,
     });
     return entries;
+};
+
+export const getPlayerProfileStats = async (userId: string): Promise<PlayerProfileStats> => {
+    const stats = await leaderboardRepository.getPlayerProfileStats(userId);
+
+    if (!stats) {
+        throw new Error("Player profile stats not found");
+    }
+
+    return stats;
 };

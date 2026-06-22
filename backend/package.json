@@ -20,8 +20,7 @@
     "prepare": "node src/utils/setup-hook.js",
     "dev:server1": "nodemon --watch \"src/**/*.ts\" --exec \"tsx\" src/app.ts -- --port 3000",
     "dev:server2": "nodemon --watch \"src/**/*.ts\" --exec \"tsx\" src/app.ts -- --port 3001",
-    // "dev:server3": "nodemon --watch \"src/**/*.ts\" --exec \"tsx\" src/app.ts -- --port 3002",
-    "dev": "npm run prepare && concurrently --names server1,server2,server3 -c \"#06f,#08e,#0ad\" --prefix \"[{name}]\" \"npm run dev:server1\" \"npm run dev:server2\" \"npm run dev:server3\"",
+    "dev": "npm run prepare && concurrently --names server1,server2 -c \"#06f,#08e\" --prefix \"[{name}]\" \"npm run dev:server1\" \"npm run dev:server2\"",
     "build": "npm run prepare && npx tsc",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix"
@@ -31,6 +30,7 @@
     "@supabase/supabase-js": "^2.106.2",
     "@zess-online-chess/shared": "file:../shared",
     "bcrypt": "^6.0.0",
+    "bonjour-service": "^1.4.1",
     "compression": "^1.8.1",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",

@@ -6,10 +6,13 @@ x-backend-common: &backend-common
     - backend/.env
   depends_on:
     - db
+    - redis
 
 x-backend-environment: &backend-environment
   NODE_ENV: development
   DATABASE_URL: postgres://postgres:mat_khau_moi_cua_ban@db:5432/chess_db
+  REDIS_ENABLED: "true"
+  REDIS_URL: redis://redis:6379
 
 services:
   backend-3000:
@@ -37,6 +40,11 @@ services:
     depends_on:
       - backend-3000
       - backend-3001
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
 
   db:
     image: postgres:15-alpine

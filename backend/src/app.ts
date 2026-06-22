@@ -1,8 +1,10 @@
 import "dotenv/config";
 
+import { publishMdnsService } from "./utils/mdns-publisher";
 import express, { Application, NextFunction, Request, Response } from "express";
 import cors from "cors";
 import compression from "compression";
+import * as os from "node:os";
 import { errorHandler, notFoundHandler } from "./middlewares/error-handlers";
 import { router } from "./routes/router";
 import { globalLimiter } from "./middlewares/rate-limiter";
@@ -46,6 +48,11 @@ async function initializeApp() {
     return new Promise<void>((resolve, reject) => {
         httpServer!.listen(PORT, () => {
             console.log(`Zess Chess System is running on port ${PORT}`);
+
+            if (process.env.MDNS_ENABLED === "true" && PORT === 3000) {
+                publishMdnsService(8080);
+            }
+
             resolve();
         }).on("error", (err: any) => {
             if (err.code === "EADDRINUSE") {
@@ -179,8 +186,18 @@ function setupRoutes(app: Application) {
      * ---------------------------------------------------------
      */
 
-    // Remove this logic for production
     app.get("/", (req: Request, res: Response) => res.send("Hello World!"));
+    app.get("/health", (req: Request, res: Response) => {
+        res.json({
+            ok: true,
+            service: "zess-online-chess-server",
+            port: getServerPort(),
+            pid: process.pid,
+            hostname: os.hostname(),
+            redisEnabled: process.env.REDIS_ENABLED === "true",
+            timestamp: new Date().toISOString(),
+        });
+    });
 
     /**
      * ---------------------------------------------------------

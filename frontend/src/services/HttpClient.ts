@@ -1,16 +1,19 @@
 import axios from "axios";
 import { clearAuthSession, getAccessToken, getRefreshToken, setAuthSession } from "./authSession";
 
-const serverApiUrl = import.meta.env.VITE_SERVER_API_URL;
+import { getApiUrl } from "./serverConfig";
 
 const HttpClient = axios.create({
-  baseURL: serverApiUrl,
+  baseURL: getApiUrl(), // giá trị tạm lúc khởi tạo, sẽ update lại sau khi discover xong
   timeout: 30000,
   headers: {
     "Content-Type": "application/json",
   },
-  // withCredentials: true, // Phải xóa nếu không dùng cookie
 });
+
+export function updateHttpClientBaseUrl() {
+  HttpClient.defaults.baseURL = getApiUrl();
+}
 
 let isRefreshing = false;
 let failedQueue: any[] = [];

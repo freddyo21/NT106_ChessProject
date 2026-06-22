@@ -1,13 +1,17 @@
 import { io, type Socket } from "socket.io-client";
 import { getAccessToken } from "./authSession";
+import { getSocketUrl } from "./serverConfig";
 
 type ServerToClientEvents = {
+  "server-info": (payload: { port?: string; hostname?: string }) => void;
   "connect": () => void;
   "connect_error": (error: Error) => void;
   "disconnect": (reason: string) => void;
   "presence:list": (payload: PresenceUser[]) => void;
   "presence:user_online": (payload: PresenceUser) => void;
   "presence:user_offline": (payload: { userId: string; timestamp: string }) => void;
+  "profile:stats_updated": (payload: PlayerProfileStatsPayload) => void;
+  "leaderboard:changed": () => void;
   "lobby:joined": (payload: { roomId: string }) => void;
   "lobby:message": (payload: LobbyMessagePayload) => void;
   "chat": (payload: RoomMessagePayload) => void;
@@ -177,6 +181,16 @@ export type PresenceUser = {
   status: "online" | "playing" | "idle";
 };
 
+export type PlayerProfileStatsPayload = {
+  userId: string;
+  rating: number;
+  wins: number;
+  losses: number;
+  draws: number;
+  gamesPlayed: number;
+  winRate: number;
+};
+
 export type LobbyMessagePayload = {
   id: string;
   sender: string;
@@ -223,27 +237,6 @@ export type SocketGameStartedPayload = {
 
 export type AppSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
 
-function getSocketUrl() {
-  const explicitSocketUrl = import.meta.env.VITE_SOCKET_URL;
-
-  if (explicitSocketUrl) {
-    return explicitSocketUrl.replace(/\/+$/, "");
-  }
-
-  const apiUrl =
-    import.meta.env.VITE_SERVER_API_URL ||
-    import.meta.env.VITE_API_URL ||
-    "http://localhost:3000/api/v1";
-
-  try {
-    // Socket.IO lives at the backend origin, not under the REST /api/v1 path.
-    return new URL(apiUrl).origin;
-  } catch {
-    return "http://localhost:3000";
-  }
-}
-
-const SOCKET_URL = getSocketUrl();
 
 let socketInstance: AppSocket | null = null;
 let socketToken: string | null = null;
@@ -266,11 +259,16 @@ export function getAppSocket() {
   }
 
   if (!socketInstance) {
-    socketInstance = io(SOCKET_URL, {
+    socketInstance = io(getSocketUrl(), {
       autoConnect: false,
       auth: { token },
-      transports: ["websocket", "polling"],
+      transports: ["websocket"],
     });
+
+    socketInstance.on("server-info", (data) => {
+    console.log("Connected to backend:", data);
+  });
+
     socketToken = token;
   }
 

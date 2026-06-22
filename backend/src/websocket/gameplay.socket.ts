@@ -10,6 +10,7 @@ import { createTimer, destroyTimer, getSnapshot, hasTimer, startTimer, switchTur
 import { AI_MOVE_DELAY_MS, chooseAiMove, isAiDifficulty } from "../services/chess-ai.service";
 import { buildGameStatePayload } from "../utils/game-payload";
 import * as gameRepository from "../repositories/game.repository";
+import * as leaderboardService from "../services/leaderboard.service";
 import type { PieceColor } from "../types/GameResult";
 import type { TimeControlType } from "../types/TimeControl";
 import { Logger } from "../utils/Logger";
@@ -35,6 +36,19 @@ const getGameResultFromStatus = (status: string): "white" | "black" | "draw" | n
 
 export const gameplaySocket = (socket: Socket) => {
     const logger = new Logger("gameplay-socket");
+
+    const emitRatingRealtimeUpdates = async (userIds: string[]) => {
+        const uniqueUserIds = [...new Set(userIds)];
+
+        const statsList = await Promise.all(
+            uniqueUserIds.map((userId) => leaderboardService.getPlayerProfileStats(userId))
+        );
+
+        statsList.forEach((stats) => {
+            socket.nsp.to(`user:${stats.userId}`).emit("profile:stats_updated", stats);
+        });
+        socket.nsp.emit("leaderboard:changed");
+    };
 
     const emitGameError = (callback: GameActionCallback | undefined, err: unknown) => {
         const message = err instanceof Error ? err.message : "Unknown game error";
@@ -168,6 +182,8 @@ export const gameplaySocket = (socket: Socket) => {
                 gameRepository.insertRatingHistory(whitePlayer.userId, room.gameId, whiteRating.rating, eloResult.whiteNextElo),
                 gameRepository.insertRatingHistory(blackPlayer.userId, room.gameId, blackRating.rating, eloResult.blackNextElo),
             ]);
+
+            await emitRatingRealtimeUpdates([whitePlayer.userId, blackPlayer.userId]);
         }
     };
 

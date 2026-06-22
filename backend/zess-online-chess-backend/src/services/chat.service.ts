@@ -13,5 +13,5 @@ export const chatFilter = async (message: string) => {
         .replace(/(.)\1{5,}/g, "$1$1$1")
         .slice(0, MAX_CHAT_LENGTH);
 
-    return message;
-}
+    return filterMessage(message);
+};

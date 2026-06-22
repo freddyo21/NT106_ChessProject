@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { HttpClient } from "../services/HttpClient";
 import { getCurrentUser } from "../services/authSession";
+import { getAppSocket } from "../services/socketClient";
 import "./LeaderboardPage.css";
 
 type LeaderboardPlayer = {
@@ -35,6 +36,7 @@ function LeaderboardPage() {
   const [searchKeyword, setSearchKeyword] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
+  const [refreshVersion, setRefreshVersion] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -79,7 +81,23 @@ function LeaderboardPage() {
     return () => {
       cancelled = true;
     };
-  }, [currentUser?.id]);
+  }, [currentUser?.id, refreshVersion]);
+
+  useEffect(() => {
+    const socket = getAppSocket();
+    const handleLeaderboardChanged = () => {
+      setRefreshVersion((version) => version + 1);
+    };
+
+    socket?.on("leaderboard:changed", handleLeaderboardChanged);
+    if (socket && !socket.connected) {
+      socket.connect();
+    }
+
+    return () => {
+      socket?.off("leaderboard:changed", handleLeaderboardChanged);
+    };
+  }, []);
 
   const sortedPlayers = useMemo(() => {
     return [...players].sort((a, b) => {

@@ -19,10 +19,12 @@
     "dev:shared": "npm --workspace=shared run dev",
     "dev:backend": "npm --workspace=backend run dev",
     "dev:frontend": "npm --workspace=frontend run dev -- --host 127.0.0.1 --port 1420",
+    "dev:frontend:nginx": "npm --workspace=frontend run dev:nginx -- --host 127.0.0.1 --port 1420",
     "dev:frontend:tauri": "npm --workspace=frontend run tauri dev",
     "dev": "npm run build:shared && concurrently --names backend,frontend,shared -c \"#f20,#0a0,#ea0\" --prefix \"[{name}]\" \"npm run dev:backend\" \"npm run dev:frontend\" \"npm run dev:shared\"",
     "start:backend": "npm --workspace=backend start",
     "start:frontend": "npm --workspace=frontend run preview -- --host 127.0.0.1 --port 1420",
+    "start:frontend:nginx": "npm --workspace=frontend run preview:nginx -- --host 127.0.0.1 --port 1420",
     "start:frontend:tauri": "npm --workspace=frontend run tauri preview -- --host 0.0.0.0 --port 5173",
     "start": "npm run build:shared && concurrently --names backend,frontend -c \"#f20,#0a0\" --prefix \"[{name}]\" \"npm run start:backend\" \"npm run start:frontend\"",
     "lint": "npm --workspaces --if-present run lint",
@@ -30,6 +32,7 @@
   },
   "dependencies": {
     "axios": "^1.16.0",
+    "bonjour-service": "^1.4.1",
     "zod": "^4.4.3"
   },
   "devDependencies": {

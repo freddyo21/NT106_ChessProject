@@ -87,6 +87,10 @@ export const socketInitialize = async (httpServer: HttpServer) => {
         socket.join(`user:${userId}`);
         logger.log("User connected", { socketId: socket.id, userId });
 
+        socket.emit("server-info", {
+            port: process.env.PORT,
+            hostname: process.env.HOSTNAME,
+        });
         // Clear any pending disconnect timeout if user reconnects
         if (disconnectTimeouts.has(userId)) {
             clearTimeout(disconnectTimeouts.get(userId)!);

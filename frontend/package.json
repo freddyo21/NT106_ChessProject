@@ -5,8 +5,11 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:nginx": "vite --mode nginx",
     "build": "tsc && vite build",
+    "build:nginx": "tsc && vite build --mode nginx",
     "preview": "vite preview",
+    "preview:nginx": "vite preview --mode nginx",
     "tauri": "tauri"
   },
   "dependencies": {
@@ -15,6 +18,7 @@
     "@tauri-apps/plugin-opener": "^2.5.4",
     "@zess-online-chess/shared": "file:../shared",
     "emoji-picker-react": "^4.19.1",
+    "flairup": "^1.1.0",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
     "react-router-dom": "^7.6.2",

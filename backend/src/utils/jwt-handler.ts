@@ -5,13 +5,14 @@ import { ITokenPayload, UserResponse } from "@zess-online-chess/shared";
 import { getKeys } from "./key-generator";
 import ms from "ms";
 import crypto from "crypto";
+import {
+    deleteExpiredAuthTokens,
+    findValidAuthToken,
+    revokeAuthToken,
+    storeAuthToken
+} from "../repositories/auth-token.repository";
 
 const logger = new Logger("jwt");
-
-type RefreshTokenRecord = {
-    userId: string;
-    expiresAt: number;
-};
 
 export const generateToken = (user: UserResponse, expiresIn: ms.StringValue = "15m") => {
     const issuedAt = Math.floor(Date.now() / 1000);
@@ -55,8 +56,6 @@ const generateRefreshTokenString = (): string => {
     return crypto.randomBytes(32).toString("hex");
 };
 
-const refreshTokenStore = new Map<string, RefreshTokenRecord>();
-
 // const getSecretKey = (): string => {
 //     const key = process.env.JWT_SECRET_KEY; // Do not provide a default value for the secret key, as it is critical for security.
 //     const hasKey = key && key.trim().length > 0; // Check if the key exists and is not just whitespace.
@@ -69,18 +68,6 @@ const refreshTokenStore = new Map<string, RefreshTokenRecord>();
 // };
 
 // Cần bỏ sau khi đã có Redis để blacklist refresh token
-const cleanupExpiredRefreshTokens = () => {
-    const now = Date.now();
-    for (const [token, record] of refreshTokenStore.entries()) {
-        if (record.expiresAt <= now) {
-            refreshTokenStore.delete(token);
-        }
-    }
-};
-
-const generateRefreshTokenString = (): string => {
-    return crypto.randomBytes(32).toString("hex");
-};
 
 export const generateRefreshToken = async (userId: string, expiresIn: ms.StringValue = "7d") => {
     await deleteExpiredAuthTokens("refresh");

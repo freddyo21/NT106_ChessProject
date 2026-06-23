@@ -72,7 +72,9 @@ const CHARACTER_VARIANTS: Record<string, string> = {
     t: "t7+",
     u: "uùúụủũưừứựửữ",
     v: "v",
-    x: "x"
+    x: "x*",
+    y: "yỳýỵỷỹ",
+    z: "z2"
 };
 
 const escapeRegex = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");

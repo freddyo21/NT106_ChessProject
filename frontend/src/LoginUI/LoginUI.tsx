@@ -1,10 +1,13 @@
-import { FormEvent, useState } from "react";
+import { SubmitEvent, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { type LoginResponseDTO } from "@zess-online-chess/shared";
 import { setAuthSession } from "../services/authSession";
 import { userForgotPassword, userLogin, userRegister } from "../services/auth.services";
 import "./LoginUI.css";
 import logo from "../Image/ZessOnlChessLogoDon.svg";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faArrowLeft, faEye, faEyeSlash } from "@fortawesome/free-solid-svg-icons";
+import { ZodError, z } from "zod";
 
 type AuthMode = "login" | "register" | "forgot_password";
 
@@ -14,6 +17,17 @@ type MessageState = {
 } | null;
 
 function getErrorMessage(error: unknown) {
+
+  if (error instanceof ZodError) {
+    const json = JSON.parse(error.message);
+
+    const messages: string[] = json.map((item: any) => item.message)
+      .filter((msg: unknown): msg is string => typeof msg === "string");
+    const set = new Set<string>(messages);
+
+    return Array.from(set).join("; ") || "Dữ liệu không hợp lệ. Vui lòng kiểm tra lại.";
+  }
+
   if (typeof error === "object" && error !== null && "response" in error) {
     const response = (error as {
       response?: {
@@ -80,7 +94,7 @@ function LoginUI() {
     setMessage(null);
   };
 
-  const handleLogin = async (event: FormEvent<HTMLFormElement>) => {
+  const handleLogin = async (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
     setIsSubmitting(true);
     setMessage(null);
@@ -110,7 +124,7 @@ function LoginUI() {
     }
   };
 
-  const handleRegister = async (event: FormEvent<HTMLFormElement>) => {
+  const handleRegister = async (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
     setIsSubmitting(true);
     setMessage(null);
@@ -137,6 +151,7 @@ function LoginUI() {
         text: "Đăng ký thành công. Vui lòng đăng nhập sau khi tài khoản được xác thực.",
       });
     } catch (error) {
+      console.error("Registration error:", error);
       setMessage({
         type: "error",
         text: getErrorMessage(error) || "Đăng ký thất bại. Vui lòng kiểm tra lại thông tin.",
@@ -146,7 +161,7 @@ function LoginUI() {
     }
   };
 
-  const handleForgotPassword = async (event: FormEvent<HTMLFormElement>) => {
+  const handleForgotPassword = async (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
     setIsSubmitting(true);
     setMessage(null);
@@ -176,31 +191,32 @@ function LoginUI() {
             <h1 className="brand-title">Zess Online Chess</h1>
           </div>
           <p>
-            Là sản phẩm đồ án của nhóm 11 của lớp NT106.Q23.ANTT của UIT
+            Là sản phẩm đồ án nhóm 11 lớp NT106.Q23.ANTT
           </p>
         </div>
 
         <div className="auth-right">
           {authMode !== "forgot_password" ? (
-            <div className="auth-tabs">
-              <button
-                type="button"
-                className={`tab ${authMode === "login" ? "active" : ""}`}
-                onClick={() => switchMode("login")}
-                disabled={isSubmitting}
-              >
-                Đăng nhập
-              </button>
+            // <div className="auth-tabs">
+            //   <button
+            //     type="button"
+            //     className={`tab ${authMode === "login" ? "active" : ""}`}
+            //     onClick={() => switchMode("login")}
+            //     disabled={isSubmitting}
+            //   >
+            //     Đăng nhập
+            //   </button>
 
-              <button
-                type="button"
-                className={`tab ${authMode === "register" ? "active" : ""}`}
-                onClick={() => switchMode("register")}
-                disabled={isSubmitting}
-              >
-                Đăng ký
-              </button>
-            </div>
+            //   <button
+            //     type="button"
+            //     className={`tab ${authMode === "register" ? "active" : ""}`}
+            //     onClick={() => switchMode("register")}
+            //     disabled={isSubmitting}
+            //   >
+            //     Đăng ký
+            //   </button>
+            // </div>
+            <></>
           ) : (
             <div className="auth-inline-top">
               <button
@@ -209,7 +225,10 @@ function LoginUI() {
                 onClick={() => switchMode("login")}
                 disabled={isSubmitting}
               >
-                ← Quay lại đăng nhập
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <FontAwesomeIcon icon={faArrowLeft} />
+                  Quay lại đăng nhập
+                </div>
               </button>
             </div>
           )}
@@ -249,28 +268,34 @@ function LoginUI() {
                   onClick={() => setShowLoginPassword((prev) => !prev)}
                   disabled={isSubmitting}
                 >
-                  {showLoginPassword ? "Ẩn" : "Hiện"}
+                  {showLoginPassword ? (
+                    <FontAwesomeIcon icon={faEyeSlash} />
+                  ) : (
+                    <FontAwesomeIcon icon={faEye} />
+                  )}
                 </button>
               </div>
 
-              <label className="remember-row">
-                <input
-                  type="checkbox"
-                  checked={rememberMe}
-                  onChange={(event) => setRememberMe(event.target.checked)}
-                  disabled={isSubmitting}
-                />
-                Ghi nhớ đăng nhập
-              </label>
+              <div className="utils-row">
+                <div className="remember-me">
+                  <input
+                    type="checkbox"
+                    checked={rememberMe}
+                    onChange={(event) => setRememberMe(event.target.checked)}
+                    disabled={isSubmitting}
+                  />
+                  Ghi nhớ đăng nhập
+                </div>
 
-              <button
-                type="button"
-                className="forgot-password-btn"
-                onClick={() => switchMode("forgot_password")}
-                disabled={isSubmitting}
-              >
-                Quên mật khẩu?
-              </button>
+                <button
+                  type="button"
+                  className="forgot-password-btn"
+                  onClick={() => switchMode("forgot_password")}
+                  disabled={isSubmitting}
+                >
+                  Quên mật khẩu?
+                </button>
+              </div>
 
               <button
                 type="submit"
@@ -295,7 +320,7 @@ function LoginUI() {
             <form className="auth-form" onSubmit={handleRegister}>
               <h2>Đăng ký</h2>
               <p className="auth-description">
-                Tạo tài khoản bằng email để dùng Auth thật và kết nối WebSocket.
+                Đăng ký qua email để xác thực tài khoản và trải nghiệm các tính năng thời gian thực
               </p>
 
               <label htmlFor="register-gmail">Email</label>
@@ -348,7 +373,11 @@ function LoginUI() {
                   onClick={() => setShowRegisterPassword((prev) => !prev)}
                   disabled={isSubmitting}
                 >
-                  {showRegisterPassword ? "Ẩn" : "Hiện"}
+                  {showRegisterPassword ? (
+                    <FontAwesomeIcon icon={faEyeSlash} />
+                  ) : (
+                    <FontAwesomeIcon icon={faEye} />
+                  )}
                 </button>
               </div>
 
@@ -371,7 +400,11 @@ function LoginUI() {
                   onClick={() => setShowRegisterConfirmPassword((prev) => !prev)}
                   disabled={isSubmitting}
                 >
-                  {showRegisterConfirmPassword ? "Ẩn" : "Hiện"}
+                  {showRegisterConfirmPassword ? (
+                    <FontAwesomeIcon icon={faEyeSlash} />
+                  ) : (
+                    <FontAwesomeIcon icon={faEye} />
+                  )}
                 </button>
               </div>
 
@@ -384,7 +417,9 @@ function LoginUI() {
               </button>
 
               {message && (
-                <div className={`message ${message.type}`}>{message.text}</div>
+                <div className={`message ${message.type}`}>
+                  {message.text.split("; ").map((msg, index) => <p key={index}>{msg}</p>)}
+                </div>
               )}
 
               <p className="switch-text">

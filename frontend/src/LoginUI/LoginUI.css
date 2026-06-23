@@ -62,11 +62,11 @@ input {
   color: #0f172a;
 }
 
-.auth-tabs {
+/* .auth-tabs {
   display: flex;
   margin-bottom: 24px;
   gap: 12px;
-}
+} */
 
 .tab {
   flex: 1;
@@ -188,7 +188,6 @@ input {
 }
 
 .forgot-password-btn {
-  margin-top: 10px;
   border: none;
   background: transparent;
   color: #2563eb;
@@ -309,16 +308,25 @@ input {
   }
 }
 
-.remember-row {
+.utils-row {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 8px;
   color: #cbd5e1;
   font-size: 14px;
   font-weight: 600;
+  margin-top: 12px;
 }
 
-.remember-row input {
+.utils-row .remember-me {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+
+.utils-row .remember-me>input {
   width: 16px;
   height: 16px;
   accent-color: #4f46e5;

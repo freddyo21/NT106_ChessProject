@@ -7,7 +7,7 @@ import "./LoginUI.css";
 import logo from "../Image/ZessOnlChessLogoDon.svg";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faArrowLeft, faEye, faEyeSlash } from "@fortawesome/free-solid-svg-icons";
-import { ZodError, z } from "zod";
+import { ZodError } from "zod";
 
 type AuthMode = "login" | "register" | "forgot_password";
 

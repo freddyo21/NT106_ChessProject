@@ -8,10 +8,21 @@ function isTauri() {
 }
 
 function buildUrls(address: string) {
+  // Xóa các giao thức nếu người dùng lỡ gõ vào
   const clean = address.replace(/^https?:\/\//, "").replace(/\/+$/, "");
+  
+  const hostPart = clean.split(":")[0];
+  const isIp = /^[\d.]+$/.test(hostPart);
+  
+  // KIỂM TRA: Nếu là tên miền ngrok TCP (chứa .ngrok.io) thì dùng http, không dùng https
+  const isNgrokTcp = hostPart.includes("ngrok.io");
+  
+  // Nếu là IP (Radmin/LAN) hoặc là Ngrok TCP thì dùng http. Ngược lại (Domain web khác) mới dùng https
+  const protocol = (isIp || isNgrokTcp) ? "http" : "https";
+  
   return {
-    apiUrl: `http://${clean}/api/v1`,
-    socketUrl: `http://${clean}`,
+    apiUrl: `${protocol}://${clean}/api/v1`,
+    socketUrl: `${protocol}://${clean}`,
   };
 }
 
